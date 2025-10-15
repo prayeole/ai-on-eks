@@ -76,7 +76,7 @@ resource "aws_security_group" "fsx" {
 module "fsx_s3_bucket" {
   count   = var.deploy_fsx_volume ? 1 : 0
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "~> 3.0"
+  version = "~> 5.7"
 
   create_bucket = true
 

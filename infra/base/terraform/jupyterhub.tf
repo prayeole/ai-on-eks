@@ -10,12 +10,12 @@ resource "kubernetes_namespace" "jupyterhub" {
 
 module "jupyterhub_single_user_irsa" {
   count   = var.enable_jupyterhub ? 1 : 0
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.2"
 
-  role_name = "${module.eks.cluster_name}-jupyterhub-single-user-sa"
+  name = "${module.eks.cluster_name}-jupyterhub-single-user-sa"
 
-  role_policy_arns = {
+  policies = {
     policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess" # Policy needs to be defined based in what you need to give access to your notebook instances.
   }
 
@@ -32,7 +32,7 @@ resource "kubernetes_service_account_v1" "jupyterhub_single_user_sa" {
   metadata {
     name        = "${module.eks.cluster_name}-jupyterhub-single-user"
     namespace   = kubernetes_namespace.jupyterhub[count.index].metadata[0].name
-    annotations = { "eks.amazonaws.com/role-arn" : module.jupyterhub_single_user_irsa[0].iam_role_arn }
+    annotations = { "eks.amazonaws.com/role-arn" : module.jupyterhub_single_user_irsa[0].name }
   }
 
   automount_service_account_token = true

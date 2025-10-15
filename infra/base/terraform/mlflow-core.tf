@@ -4,7 +4,7 @@
 module "db" {
   count   = var.enable_mlflow_tracking ? 1 : 0
   source  = "terraform-aws-modules/rds/aws"
-  version = "~> 5.0"
+  version = "~> 6.13"
 
   identifier = local.mlflow_name
 
@@ -18,11 +18,11 @@ module "db" {
   allocated_storage = 100
   iops              = 3000
 
-  db_name                = local.mlflow_name
-  username               = local.mlflow_name
-  create_random_password = false
-  password               = sensitive(aws_secretsmanager_secret_version.postgres[0].secret_string)
-  port                   = 5432
+  db_name                     = local.mlflow_name
+  username                    = local.mlflow_name
+  manage_master_user_password = false
+  password                    = sensitive(aws_secretsmanager_secret_version.postgres[0].secret_string)
+  port                        = 5432
 
   multi_az               = true
   db_subnet_group_name   = module.vpc.database_subnet_group
@@ -86,7 +86,7 @@ resource "aws_secretsmanager_secret_version" "postgres" {
 module "security_group" {
   count   = var.enable_mlflow_tracking ? 1 : 0
   source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 5.0"
+  version = "~> 5.3"
 
   name        = local.name
   description = "Complete PostgreSQL example security group"
@@ -115,7 +115,7 @@ module "security_group" {
 module "mlflow_s3_bucket" {
   count   = var.enable_mlflow_tracking ? 1 : 0
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "~> 3.0"
+  version = "~> 5.7"
 
   bucket_prefix = "${local.name}-artifacts-"
 
@@ -176,7 +176,7 @@ module "mlflow_irsa" {
   count = var.enable_mlflow_tracking ? 1 : 0
 
   source  = "aws-ia/eks-blueprints-addon/aws"
-  version = "~> 1.0" #ensure to update this to the latest/desired version
+  version = "~> 1.1" #ensure to update this to the latest/desired version
 
   # Disable helm release
   create_release = false
@@ -234,9 +234,11 @@ data "aws_iam_policy_document" "mlflow" {
     ]
   }
   statement {
-    sid       = ""
-    effect    = "Allow"
-    resources = ["arn:${local.partition}:rds-db:${local.region}:${local.account_id}:dbuser:${module.db[0].db_instance_name}/${local.mlflow_name}"]
+    sid    = ""
+    effect = "Allow"
+    resources = [
+      "arn:${local.partition}:rds-db:${local.region}:${local.account_id}:dbuser:${module.db[0].db_instance_name}/${local.mlflow_name}"
+    ]
 
     actions = [
       "rds-db:connect",

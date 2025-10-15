@@ -47,20 +47,20 @@ locals {
 #---------------------------------------------------------------
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.34"
+  version = "~> 21.4"
 
-  cluster_name    = local.name
-  cluster_version = var.eks_cluster_version
+  name               = local.name
+  kubernetes_version = var.eks_cluster_version
 
   #WARNING: Avoid using this option (cluster_endpoint_public_access = true) in preprod or prod accounts. This feature is designed for sandbox accounts, simplifying cluster deployment and testing.
-  cluster_endpoint_public_access = true
+  endpoint_public_access = true
 
   # Add the IAM identity that terraform is using as a cluster admin
   authentication_mode                      = "API_AND_CONFIG_MAP"
   enable_cluster_creator_admin_permissions = true
 
   # EKS Add-ons
-  cluster_addons = local.cluster_addons
+  addons = local.cluster_addons
 
   vpc_id = module.vpc.vpc_id
 
@@ -75,15 +75,13 @@ module "eks" {
     [data.aws_iam_session_context.current.issuer_arn]
   ))
 
-  # Add security group rules on the node group security group to
-  # allow EFA traffic
-  enable_efa_support = true
+
 
   #---------------------------------------
   # Note: This can further restricted to specific required for each Add-on and your application
   #---------------------------------------
   # Extend cluster security group rules
-  cluster_security_group_additional_rules = {
+  security_group_additional_rules = {
     ingress_nodes_ephemeral_ports_tcp = {
       description                = "Nodes on ephemeral ports"
       protocol                   = "tcp"
@@ -110,30 +108,6 @@ module "eks" {
     }
   }
 
-  eks_managed_node_group_defaults = {
-    node_repair_config = {
-      enabled = true
-    }
-
-    iam_role_additional_policies = {
-      # Not required, but used in the example to access the nodes to inspect mounted volumes
-      AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-    }
-
-    ebs_optimized = true
-    # This block device is used only for root volume. Adjust volume according to your size.
-    # NOTE: Don't use this volume for ML workloads
-    block_device_mappings = {
-      xvda = {
-        device_name = "/dev/xvda"
-        ebs = {
-          volume_size = 100
-          volume_type = "gp3"
-        }
-      }
-    }
-  }
-
   eks_managed_node_groups = merge({
     #  It's recommended to have a Managed Node group for hosting critical add-ons
     #  It's recommended to use Karpenter to place your workloads instead of using Managed Node groups
@@ -144,14 +118,35 @@ module "eks" {
       # Filtering only Secondary CIDR private subnets starting with "100.".
       # Subnet IDs where the nodes/node groups will be provisioned
       subnet_ids = local.secondary_cidr_subnets
-
+      iam_role_additional_policies = {
+        # Not required, but used in the example to access the nodes to inspect mounted volumes
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }
+      # Add security group rules on the node group security group to
+      # allow EFA traffic
+      enable_efa_support = true
+      node_repair_config = {
+        enabled = true
+      }
+      ebs_optimized = true
+      # This block device is used only for root volume. Adjust volume according to your size.
+      # NOTE: Don't use this volume for ML workloads
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = 100
+            volume_type = "gp3"
+          }
+        }
+      }
       # aws ssm get-parameters --names /aws/service/eks/optimized-ami/1.27/amazon-linux-2/recommended/image_id --region us-west-2
-      ami_type     = "AL2023_x86_64_STANDARD" # Use this for Graviton AL2023_ARM_64_STANDARD
+      ami_type     = "BOTTLEROCKET_x86_64" # Use this for Graviton AL2023_ARM_64_STANDARD
       min_size     = 2
       max_size     = 8
       desired_size = 2
 
-      instance_types = ["m5.xlarge"]
+      instance_types = ["m6i.xlarge"]
 
       labels = {
         WorkerType    = "ON_DEMAND"
@@ -167,7 +162,28 @@ module "eks" {
     nvidia-gpu = {
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["g6.4xlarge"] # Use p4d for testing MIG
-
+      iam_role_additional_policies = {
+        # Not required, but used in the example to access the nodes to inspect mounted volumes
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }
+      # Add security group rules on the node group security group to
+      # allow EFA traffic
+      enable_efa_support = true
+      node_repair_config = {
+        enabled = true
+      }
+      ebs_optimized = true
+      # This block device is used only for root volume. Adjust volume according to your size.
+      # NOTE: Don't use this volume for ML workloads
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = 100
+            volume_type = "gp3"
+          }
+        }
+      }
       # Mount instance store volumes in RAID-0 for kubelet and containerd
       cloudinit_pre_nodeadm = [
         {
@@ -209,7 +225,28 @@ module "eks" {
     cbr = {
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["p4de.24xlarge"]
-
+      iam_role_additional_policies = {
+        # Not required, but used in the example to access the nodes to inspect mounted volumes
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      }
+      # Add security group rules on the node group security group to
+      # allow EFA traffic
+      enable_efa_support = true
+      node_repair_config = {
+        enabled = true
+      }
+      ebs_optimized = true
+      # This block device is used only for root volume. Adjust volume according to your size.
+      # NOTE: Don't use this volume for ML workloads
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size = 100
+            volume_type = "gp3"
+          }
+        }
+      }
       cloudinit_pre_nodeadm = [
         {
           content_type = "application/node.eks.aws"
