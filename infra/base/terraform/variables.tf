@@ -166,6 +166,13 @@ variable "enable_argocd" {
   type        = bool
   default     = true
 }
+
+variable "enable_envoy_gateway" {
+  description = "Enable Envoy Gateway addon"
+  type        = bool
+  default     = false
+}
+
 variable "enable_mlflow_tracking" {
   description = "Enable MLFlow Tracking"
   type        = bool
