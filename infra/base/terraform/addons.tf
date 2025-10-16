@@ -7,17 +7,6 @@ data "aws_acm_certificate" "issued" {
 
 locals {
   cognito_custom_domain = var.cognito_custom_domain
-
-  ec2nodeclass = templatefile("${path.module}/templates/${var.ami_family}_ec2nodeclass.tpl",
-    {
-      node_iam_role                       = split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]
-      cluster_name                        = module.eks.cluster_name
-      enable_soci_snapshotter             = var.enable_soci_snapshotter
-      soci_snapshotter_use_instance_store = var.soci_snapshotter_use_instance_store
-      data_disk_snapshot_id               = var.bottlerocket_data_disk_snapshot_id
-      max_user_namespaces                 = var.max_user_namespaces
-    }
-  )
 }
 
 #---------------------------------------------------------------
@@ -59,15 +48,6 @@ resource "kubernetes_storage_class" "default_gp3" {
 }
 
 #---------------------------------------------------------------
-# Karpenter Node instance role Access Entry
-#---------------------------------------------------------------
-resource "aws_eks_access_entry" "karpenter_nodes" {
-  cluster_name  = module.eks.cluster_name
-  principal_arn = module.eks_blueprints_addons.karpenter.node_iam_role_arn
-  type          = "EC2_LINUX"
-}
-
-#---------------------------------------------------------------
 # EKS Blueprints Addons
 #---------------------------------------------------------------
 module "eks_blueprints_addons" {
@@ -80,61 +60,6 @@ module "eks_blueprints_addons" {
   oidc_provider_arn = module.eks.oidc_provider_arn
 
   enable_aws_efs_csi_driver = var.enable_aws_efs_csi_driver
-
-  #---------------------------------------
-  # Ingress Nginx Add-on
-  #---------------------------------------
-  enable_ingress_nginx = var.enable_ingress_nginx
-  ingress_nginx = {
-    version = "4.12.1"
-    values  = [templatefile("${path.module}/helm-values/ingress-nginx-values.yaml", {})]
-  }
-
-  #---------------------------------------
-  # Karpenter Autoscaler for EKS Cluster
-  #---------------------------------------
-  enable_karpenter                  = true
-  karpenter_enable_spot_termination = true
-  karpenter_node = {
-    iam_role_additional_policies = {
-      AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-    }
-  }
-  karpenter = {
-    chart_version       = "1.4.0"
-    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
-    repository_password = data.aws_ecrpublic_authorization_token.token.password
-    source_policy_documents = [
-      data.aws_iam_policy_document.karpenter_controller_policy.json
-    ]
-  }
-
-  #---------------------------------------
-  # Argo Workflows & Argo Events
-  #---------------------------------------
-  enable_argo_workflows = var.enable_argo_workflows
-  argo_workflows = {
-    name       = "argo-workflows"
-    namespace  = "argo-workflows"
-    repository = "https://argoproj.github.io/argo-helm"
-    values     = [templatefile("${path.module}/helm-values/argo-workflows-values.yaml", {})]
-  }
-
-  enable_argo_events = var.enable_argo_events
-  argo_events = {
-    name       = "argo-events"
-    namespace  = "argo-events"
-    repository = "https://argoproj.github.io/argo-helm"
-    values     = [templatefile("${path.module}/helm-values/argo-events-values.yaml", {})]
-  }
-
-  enable_argocd = var.enable_argocd
-  argocd = {
-    name       = "argocd"
-    namespace  = "argocd"
-    repository = "https://argoproj.github.io/argo-helm"
-    values     = [templatefile("${path.module}/helm-values/argocd-values.yaml", {})]
-  }
 
   #---------------------------------------
   # Prometheus and Grafana stack
@@ -207,20 +132,6 @@ module "data_addons" {
   } : null
 
   enable_volcano = var.enable_volcano
-  #---------------------------------------
-  # Kuberay Operator
-  #---------------------------------------
-  enable_kuberay_operator = var.enable_kuberay_operator
-  kuberay_operator_helm_config = {
-    version = "1.4.0"
-    # Enabling Volcano as Batch scheduler for KubeRay Operator
-    values = [
-      <<-EOT
-      batchScheduler:
-        enabled: ${var.enable_volcano}
-    EOT
-    ]
-  }
 
   #---------------------------------------------------------------
   # MLflow Tracking Add-on

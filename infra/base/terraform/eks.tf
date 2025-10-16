@@ -40,9 +40,8 @@ locals {
 # EKS Cluster
 #---------------------------------------------------------------
 module "eks" {
-  depends_on = [module.ebs_csi_driver_irsa]
-  source     = "terraform-aws-modules/eks/aws"
-  version    = "~> 21.4"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 21.4"
 
   name               = local.name
   kubernetes_version = var.eks_cluster_version
@@ -63,7 +62,7 @@ module "eks" {
   # Subnet IDs where the EKS Control Plane ENIs will be created
   subnet_ids = local.secondary_cidr_subnets
 
-  # Combine root account, current user/role and additinoal roles to be able to access the cluster KMS key - required for terraform updates
+  # Combine root account, current user/role and additional roles to be able to access the cluster KMS key - required for terraform updates
   kms_key_administrators = distinct(concat([
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"],
     var.kms_key_admin_roles,

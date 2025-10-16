@@ -1,0 +1,46 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: x86-cpu-karpenter
+spec:
+  disruption:
+    budgets:
+      - nodes: 10%
+    consolidateAfter: 300s
+    consolidationPolicy: WhenEmpty
+  template:
+    metadata:
+      labels:
+        NodeGroupType: x86-cpu-karpenter
+        NodePool: x86-cpu-karpenter
+        instanceType: x86-cpu-karpenter
+        type: karpenter
+    spec:
+      expireAfter: 720h
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: x86-cpu-karpenter
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m6i
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - xlarge
+            - 2xlarge
+            - 4xlarge
+            - 8xlarge
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - on-demand
+            - spot
+      terminationGracePeriod: 48h
+  weight: 100

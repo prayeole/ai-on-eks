@@ -1,13 +1,13 @@
 amiSelectorTerms:
   - alias: bottlerocket@latest
-karpenterRole: ${node_iam_role}
+role: ${node_iam_role}
 subnetSelectorTerms:
-  tags:
-    karpenter.sh/discovery: "${cluster_name}"
-    Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
+  - tags:
+      karpenter.sh/discovery: "${cluster_name}"
+      Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
 securityGroupSelectorTerms:
-  tags:
-    Name: ${cluster_name}-node
+  - tags:
+      Name: ${cluster_name}-node
 %{ if enable_soci_snapshotter && !soci_snapshotter_use_instance_store ~}
 instanceStorePolicy: RAID0
 %{ endif ~}
