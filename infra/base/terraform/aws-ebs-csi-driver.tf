@@ -2,6 +2,26 @@ resource "aws_eks_addon" "aws_ebs_csi_driver" {
   cluster_name                = module.eks.cluster_name
   addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_update = "PRESERVE"
-  service_account_role_arn    = module.ebs_csi_driver_irsa.iam_role_arn
-  depends_on                  = [module.ebs_csi_driver_irsa]
+  depends_on                  = [module.aws_ebs_csi_pod_identity]
+}
+
+module "aws_ebs_csi_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.2"
+  name    = "aws-ebs-csi"
+
+  attach_aws_ebs_csi_policy = true
+  aws_ebs_csi_kms_arns      = ["arn:aws:kms:*:*:key/${module.eks.cluster_name}-ebs-csi-kms-key"]
+
+  associations = {
+    ebs_csi = {
+      cluster_name    = module.eks.cluster_name
+      namespace       = "kube-system"
+      service_account = "ebs-csi-controller-sa"
+    }
+  }
+
+  # tags = {
+  #   Environment = "dev"
+  # }
 }

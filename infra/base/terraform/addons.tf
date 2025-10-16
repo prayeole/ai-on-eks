@@ -59,8 +59,6 @@ module "eks_blueprints_addons" {
   cluster_version   = module.eks.cluster_version
   oidc_provider_arn = module.eks.oidc_provider_arn
 
-  enable_aws_efs_csi_driver = var.enable_aws_efs_csi_driver
-
   #---------------------------------------
   # Prometheus and Grafana stack
   #---------------------------------------
@@ -89,11 +87,6 @@ module "eks_blueprints_addons" {
       }
     ],
   }
-
-  #---------------------------------------
-  # Enable FSx for Lustre CSI Driver
-  #---------------------------------------
-  enable_aws_fsx_csi_driver = var.enable_aws_fsx_csi_driver
 
   tags = local.tags
 
@@ -506,29 +499,4 @@ resource "aws_secretsmanager_secret_version" "grafana" {
 resource "kubectl_manifest" "neuron_monitor" {
   yaml_body  = file("${path.module}/monitoring/neuron-monitor-daemonset.yaml")
   depends_on = [module.eks_blueprints_addons]
-}
-
-resource "kubectl_manifest" "efs_sc" {
-  count     = var.enable_aws_efs_csi_driver ? 1 : 0
-  yaml_body = <<YAML
-    apiVersion: storage.k8s.io/v1
-    kind: StorageClass
-    metadata:
-      name: efs-sc
-    provisioner: efs.csi.aws.com
-    mountOptions:
-      - iam
-  YAML
-}
-
-data "aws_iam_policy_document" "karpenter_controller_policy" {
-  statement {
-    actions = [
-      "ec2:RunInstances",
-      "ec2:CreateLaunchTemplate",
-    ]
-    resources = ["*"]
-    effect    = "Allow"
-    sid       = "KarpenterControllerAdditionalPolicy"
-  }
 }
