@@ -80,18 +80,6 @@ module "eks_blueprints_addons" {
   oidc_provider_arn = module.eks.oidc_provider_arn
 
   enable_aws_efs_csi_driver = var.enable_aws_efs_csi_driver
-  #---------------------------------------
-  # AWS Load Balancer Controller Add-on
-  #---------------------------------------
-  enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
-  # turn off the mutating webhook for services because we are using
-  # service.beta.kubernetes.io/aws-load-balancer-type: external
-  aws_load_balancer_controller = {
-    set = [{
-      name  = "enableServiceMutatorWebhook"
-      value = var.enable_service_mutator_webhook
-    }]
-  }
 
   #---------------------------------------
   # Ingress Nginx Add-on

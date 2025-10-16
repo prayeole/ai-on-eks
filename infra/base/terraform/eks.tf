@@ -23,12 +23,6 @@ locals {
       before_compute = true
     }
 
-    aws-ebs-csi-driver = {
-      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
-      most_recent              = false
-      addon_version            = "v1.48.0-eksbuild.1"
-    }
-
     amazon-cloudwatch-observability = {
       preserve                 = true
       service_account_role_arn = aws_iam_role.cloudwatch_observability_role.arn
@@ -46,8 +40,9 @@ locals {
 # EKS Cluster
 #---------------------------------------------------------------
 module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 21.4"
+  depends_on = [module.ebs_csi_driver_irsa]
+  source     = "terraform-aws-modules/eks/aws"
+  version    = "~> 21.4"
 
   name               = local.name
   kubernetes_version = var.eks_cluster_version
@@ -122,9 +117,7 @@ module "eks" {
         # Not required, but used in the example to access the nodes to inspect mounted volumes
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
       }
-      # Add security group rules on the node group security group to
-      # allow EFA traffic
-      enable_efa_support = true
+
       node_repair_config = {
         enabled = true
       }

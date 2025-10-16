@@ -87,7 +87,6 @@ DESC
     kube-proxy                      = true
     vpc-cni                         = true
     eks-pod-identity-agent          = true
-    aws-ebs-csi-driver              = true
     metrics-server                  = true
     eks-node-monitoring-agent       = true
     amazon-cloudwatch-observability = true
