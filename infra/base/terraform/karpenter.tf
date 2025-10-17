@@ -1,28 +1,3 @@
-locals {
-  ec2nodeclass = templatefile("${path.module}/karpenter-resources/templates/${var.ami_family}_ec2nodeclass.tpl",
-    {
-      node_iam_role                       = module.karpenter.node_iam_role_name
-      cluster_name                        = module.eks.cluster_name
-      enable_soci_snapshotter             = var.enable_soci_snapshotter
-      soci_snapshotter_use_instance_store = var.soci_snapshotter_use_instance_store
-      data_disk_snapshot_id               = var.bottlerocket_data_disk_snapshot_id
-      max_user_namespaces                 = var.max_user_namespaces
-    }
-  )
-  ec2nodeclass_manifests = {
-    for f in fileset("${path.module}/karpenter-resources/nodeclass", "*.yaml") :
-    f => templatefile("${path.module}/karpenter-resources/nodeclass/${f}", {
-      ec2nodeclass = local.ec2nodeclass
-    })
-  }
-  karpenter_node_pools = {
-    for f in fileset("${path.module}/karpenter-resources/nodepool", "*.yaml") :
-    f => templatefile("${path.module}/karpenter-resources/nodepool/${f}", {
-      ami_family = var.ami_family
-    })
-  }
-}
-
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "~> 21.4"
@@ -74,24 +49,4 @@ resource "helm_release" "karpenter" {
   ]
 
   depends_on = [module.karpenter]
-}
-
-resource "kubectl_manifest" "ec2nodeclass" {
-  for_each = { for idx, manifest in local.ec2nodeclass_manifests : idx => manifest }
-
-  yaml_body = each.value
-  wait      = true
-  depends_on = [
-    helm_release.karpenter
-  ]
-}
-
-resource "kubectl_manifest" "nodepool" {
-  for_each = local.karpenter_node_pools
-
-  yaml_body = each.value
-
-  depends_on = [
-    helm_release.karpenter
-  ]
 }

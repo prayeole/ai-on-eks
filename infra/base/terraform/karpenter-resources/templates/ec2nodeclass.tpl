@@ -1,6 +1,6 @@
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: trainium-trn1
+  name: ${name}
 spec:
   ${indent(2, ec2nodeclass)}
