@@ -1,7 +1,7 @@
 locals {
   mlflow_values = templatefile("${path.module}/helm-values/mlflow-tracking-values.yaml", {
     mlflow_sa   = local.mlflow_service_account
-    mlflow_irsa = try(module.mlflow_irsa[0].iam_role_arn, "")
+    mlflow_irsa = try(module.mlflow_pod_identity[0].iam_role_arn, "")
     # MLflow Postgres RDS Config
     mlflow_db_username = local.mlflow_name
     mlflow_db_password = try(sensitive(aws_secretsmanager_secret_version.postgres[0].secret_string), "")
@@ -120,7 +120,6 @@ module "security_group" {
   tags = local.tags
 }
 
-
 #---------------------------------------------------------------
 # S3 bucket for MLflow artifacts
 #---------------------------------------------------------------
@@ -163,53 +162,29 @@ resource "kubernetes_namespace_v1" "mlflow" {
 resource "kubernetes_service_account_v1" "mlflow" {
   count = var.enable_mlflow_tracking ? 1 : 0
   metadata {
-    name        = local.mlflow_service_account
-    namespace   = kubernetes_namespace_v1.mlflow[0].metadata[0].name
-    annotations = { "eks.amazonaws.com/role-arn" : module.mlflow_irsa[0].iam_role_arn }
-  }
-
-  automount_service_account_token = true
-}
-
-resource "kubernetes_secret_v1" "mlflow" {
-  count = var.enable_mlflow_tracking ? 1 : 0
-  metadata {
-    name      = "${local.mlflow_service_account}-secret"
+    name      = local.mlflow_service_account
     namespace = kubernetes_namespace_v1.mlflow[0].metadata[0].name
-    annotations = {
-      "kubernetes.io/service-account.name"      = kubernetes_service_account_v1.mlflow[0].metadata[0].name
-      "kubernetes.io/service-account.namespace" = kubernetes_namespace_v1.mlflow[0].metadata[0].name
-    }
   }
-
-  type = "kubernetes.io/service-account-token"
 }
 
-# Create IAM Role for Service Account (IRSA) Only if MLflow is enabled
-module "mlflow_irsa" {
-  count = var.enable_mlflow_tracking ? 1 : 0
+module "mlflow_pod_identity" {
+  count   = var.enable_mlflow_tracking ? 1 : 0
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.2"
 
-  source  = "aws-ia/eks-blueprints-addon/aws"
-  version = "~> 1.1" #ensure to update this to the latest/desired version
+  name = "mlflow-pod-identity"
 
-  # Disable helm release
-  create_release = false
+  additional_policy_arns = {
+    mlflow_policy = aws_iam_policy.mlflow[0].arn
+  }
 
-  # IAM role for service account (IRSA)
-  create_role   = true
-  create_policy = false # Policy is created in the next resource
-
-  role_name     = local.mlflow_service_account
-  role_policies = { mlflow_policy = aws_iam_policy.mlflow[0].arn }
-
-  oidc_providers = {
-    this = {
-      provider_arn    = module.eks.oidc_provider_arn
-      namespace       = kubernetes_namespace_v1.mlflow[0].metadata[0].name
+  associations = {
+    mlflow = {
+      cluster_name    = module.eks.cluster_name
+      namespace       = local.mlflow_namespace
       service_account = local.mlflow_service_account
     }
   }
-
   tags = local.tags
 }
 
@@ -270,7 +245,7 @@ resource "kubectl_manifest" "mlflow_tracking_server" {
   depends_on = [
     helm_release.argocd,
     aws_secretsmanager_secret_version.postgres,
-    module.mlflow_irsa,
+    module.mlflow_pod_identity,
     module.mlflow_s3_bucket,
     module.db
   ]
