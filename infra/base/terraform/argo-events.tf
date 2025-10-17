@@ -24,7 +24,7 @@ resource "kubectl_manifest" "argo_events_manifests" {
 module "argo_events_pod_identity" {
   count   = var.enable_argo_events ? 1 : 0
   source  = "terraform-aws-modules/eks-pod-identity/aws"
-  version = "~> 1.0"
+  version = "~> 2.2"
 
   name = "data-on-eks-argo-events"
 
