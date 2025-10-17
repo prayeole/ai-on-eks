@@ -15,6 +15,7 @@ resource "aws_iam_policy" "grafana" {
   name_prefix = format("%s-%s-", local.name, "grafana")
   path        = "/"
   policy      = data.aws_iam_policy_document.grafana[0].json
+  tags        = local.tags
 }
 
 data "aws_iam_policy_document" "grafana" {
@@ -135,4 +136,5 @@ module "amp_ingest_pod_identity" {
       service_account = local.amp_ingest_service_account
     }
   }
+  tags = local.tags
 }

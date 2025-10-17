@@ -74,6 +74,7 @@ resource "aws_efs_access_point" "efs_persist_ap" {
     }
   }
   depends_on = [module.efs]
+  tags       = local.tags
 }
 resource "aws_efs_access_point" "efs_shared_ap" {
   count          = var.enable_jupyterhub ? 1 : 0
@@ -92,6 +93,7 @@ resource "aws_efs_access_point" "efs_shared_ap" {
     }
   }
   depends_on = [module.efs]
+  tags       = local.tags
 }
 
 resource "kubernetes_persistent_volume_v1" "efs_persist" {

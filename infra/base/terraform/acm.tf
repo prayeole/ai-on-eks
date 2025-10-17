@@ -3,4 +3,5 @@ data "aws_acm_certificate" "issued" {
   count    = var.jupyter_hub_auth_mechanism != "dummy" ? 1 : 0
   domain   = var.acm_certificate_domain
   statuses = ["ISSUED"]
+  tags     = local.tags
 }

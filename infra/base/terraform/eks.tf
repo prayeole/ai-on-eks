@@ -302,6 +302,7 @@ module "eks" {
       }
     }
   } : {})
+  tags = local.tags
 }
 
 #---------------------------------------------------------------
@@ -328,6 +329,7 @@ resource "aws_iam_role" "cloudwatch_observability_role" {
       }
     ]
   })
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_observability_policy_attachment" {

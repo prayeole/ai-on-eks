@@ -29,6 +29,7 @@ module "aws_load_balancer_controller_pod_identity" {
       service_account = local.aws_load_balancer_controller_service_account
     }
   }
+  tags = local.tags
 }
 
 #---------------------------------------------------------------

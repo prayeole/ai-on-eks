@@ -4,6 +4,7 @@ resource "aws_eks_addon" "aws_fsx_csi_driver" {
   addon_name                  = "aws-fsx-csi-driver"
   resolve_conflicts_on_update = "PRESERVE"
   depends_on                  = [module.aws_fsx_csi_pod_identity]
+  tags                        = local.tags
 }
 
 module "aws_fsx_csi_pod_identity" {
@@ -22,8 +23,5 @@ module "aws_fsx_csi_pod_identity" {
       service_account = "fsx-csi-controller-sa"
     }
   }
-
-  # tags = {
-  #   Environment = "dev"
-  # }
+  tags = local.tags
 }

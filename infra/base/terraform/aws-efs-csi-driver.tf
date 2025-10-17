@@ -4,6 +4,7 @@ resource "aws_eks_addon" "aws_efs_csi_driver" {
   addon_name                  = "aws-efs-csi-driver"
   resolve_conflicts_on_update = "PRESERVE"
   depends_on                  = [module.aws_efs_csi_pod_identity]
+  tags                        = local.tags
 }
 
 module "aws_efs_csi_pod_identity" {
@@ -21,8 +22,5 @@ module "aws_efs_csi_pod_identity" {
       service_account = "efs-csi-controller-sa"
     }
   }
-
-  # tags = {
-  #   Environment = "dev"
-  # }
+  tags = local.tags
 }
