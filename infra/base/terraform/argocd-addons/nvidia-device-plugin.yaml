@@ -18,6 +18,7 @@ spec:
         # Target only GPU nodes with accelerator: nvidia label
         nodeSelector:
           accelerator: nvidia
+          amiFamily: al2023 # We don't need the plugin for Bottlerocket
 
         # Enable GPU Feature Discovery (default: false)
         gfd:
