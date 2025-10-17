@@ -54,7 +54,7 @@ resource "kubernetes_storage_class_v1" "efs" {
   ]
 
   depends_on = [
-    module.eks_blueprints_addons.aws_efs_csi_driver,
+    aws_eks_addon.aws_efs_csi_driver,
     module.efs
   ]
 }

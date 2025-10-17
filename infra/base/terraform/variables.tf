@@ -140,11 +140,6 @@ variable "enable_kube_prometheus_stack" {
   type        = bool
   default     = false
 }
-variable "enable_kubecost" {
-  description = "Enable Kubecost addon"
-  type        = bool
-  default     = false
-}
 variable "enable_ai_ml_observability_stack" {
   description = "Enable AI/ML observability addon"
   type        = bool
@@ -160,11 +155,6 @@ variable "enable_argo_events" {
   type        = bool
   default     = false
 }
-variable "enable_argocd" {
-  description = "Enable ArgoCD addon"
-  type        = bool
-  default     = true
-}
 variable "enable_mlflow_tracking" {
   description = "Enable MLFlow Tracking"
   type        = bool
@@ -172,11 +162,6 @@ variable "enable_mlflow_tracking" {
 }
 variable "enable_jupyterhub" {
   description = "Enable JupyterHub"
-  type        = bool
-  default     = false
-}
-variable "enable_volcano" {
-  description = "Enable Volcano"
   type        = bool
   default     = false
 }

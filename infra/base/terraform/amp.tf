@@ -1,3 +1,12 @@
+#------------------------------------------
+# Amazon Prometheus
+#------------------------------------------
+locals {
+  amp_ingest_service_account = "amp-iamproxy-ingest-service-account"
+  amp_namespace              = "kube-prometheus-stack"
+}
+
+
 #IAM Policy for Amazon Prometheus & Grafana
 resource "aws_iam_policy" "grafana" {
   count = var.enable_amazon_prometheus ? 1 : 0
@@ -99,13 +108,6 @@ data "aws_iam_policy_document" "grafana" {
   }
 }
 
-#------------------------------------------
-# Amazon Prometheus
-#------------------------------------------
-locals {
-  amp_ingest_service_account = "amp-iamproxy-ingest-service-account"
-  amp_namespace              = "kube-prometheus-stack"
-}
 
 resource "aws_prometheus_workspace" "amp" {
   count = var.enable_amazon_prometheus ? 1 : 0
@@ -114,24 +116,23 @@ resource "aws_prometheus_workspace" "amp" {
   tags  = local.tags
 }
 
-module "amp_ingest_irsa" {
+module "amp_ingest_pod_identity" {
   count = var.enable_amazon_prometheus ? 1 : 0
 
-  source         = "aws-ia/eks-blueprints-addon/aws"
-  version        = "~> 1.1"
-  create_release = false
-  create_role    = true
-  create_policy  = false
-  role_name      = format("%s-%s", local.name, "amp-ingest")
-  role_policies  = { amp_policy = aws_iam_policy.grafana[0].arn }
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "~> 2.2"
 
-  oidc_providers = {
-    this = {
-      provider_arn    = module.eks.oidc_provider_arn
+  name = "amp-ingest"
+
+  additional_policy_arns = {
+    amp_policy = aws_iam_policy.grafana[0].arn
+  }
+
+  associations = {
+    amp_ingest = {
+      cluster_name    = module.eks.cluster_name
       namespace       = local.amp_namespace
       service_account = local.amp_ingest_service_account
     }
   }
-
-  tags = local.tags
 }

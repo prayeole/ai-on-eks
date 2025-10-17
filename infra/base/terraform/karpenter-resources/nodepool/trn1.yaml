@@ -1,7 +1,7 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: x86-cpu-karpenter
+  name: trainium-trn1
 spec:
   disruption:
     budgets:
@@ -12,26 +12,20 @@ spec:
     metadata:
       labels:
         amiFamily: ${ami_family}
-        instanceType: x86-cpu-karpenter
+        accelerator: neuron
+        instanceType: trainium-trn1
         type: karpenter
     spec:
       expireAfter: 720h
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: x86-cpu-karpenter
+        name: trainium-trn1
       requirements:
         - key: karpenter.k8s.aws/instance-family
           operator: In
           values:
-            - m6i
-        - key: karpenter.k8s.aws/instance-size
-          operator: In
-          values:
-            - xlarge
-            - 2xlarge
-            - 4xlarge
-            - 8xlarge
+            - trn1
         - key: kubernetes.io/arch
           operator: In
           values:
@@ -40,6 +34,9 @@ spec:
           operator: In
           values:
             - on-demand
-            - spot
+      taints:
+        - key: aws.amazon.com/neuron
+          value: "true"
+          effect: "NoSchedule"
       terminationGracePeriod: 48h
   weight: 100

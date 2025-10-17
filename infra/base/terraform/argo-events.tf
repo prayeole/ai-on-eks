@@ -9,7 +9,7 @@ locals {
 # Argo Events Namespace and Service Account
 #---------------------------------------------------------------
 resource "kubectl_manifest" "argo_events_manifests" {
-  for_each = fileset("${path.module}/manifests/argo-events", "*.yaml")
+  for_each = var.enable_argo_events ? fileset("${path.module}/manifests/argo-events", "*.yaml") : []
 
   yaml_body = file("${path.module}/manifests/argo-events/${each.value}")
 

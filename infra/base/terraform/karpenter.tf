@@ -18,6 +18,7 @@ locals {
   karpenter_node_pools = {
     for f in fileset("${path.module}/karpenter-resources/nodepool", "*.yaml") :
     f => templatefile("${path.module}/karpenter-resources/nodepool/${f}", {
+      ami_family = var.ami_family
     })
   }
 }

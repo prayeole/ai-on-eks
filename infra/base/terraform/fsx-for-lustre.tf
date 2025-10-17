@@ -104,7 +104,7 @@ resource "kubectl_manifest" "storage_class" {
   })
 
   depends_on = [
-    module.eks_blueprints_addons
+    aws_eks_addon.aws_fsx_csi_driver
   ]
 }
 
@@ -120,7 +120,7 @@ resource "kubectl_manifest" "static_pv" {
   })
 
   depends_on = [
-    module.eks_blueprints_addons,
+    aws_eks_addon.aws_fsx_csi_driver,
     kubectl_manifest.storage_class,
     aws_fsx_lustre_file_system.this
   ]
@@ -135,7 +135,7 @@ resource "kubernetes_namespace" "fsx_namespace" {
     name = var.fsx_pvc_namespace
   }
   depends_on = [
-    module.eks_blueprints_addons
+    aws_eks_addon.aws_fsx_csi_driver
   ]
 }
 
@@ -146,7 +146,7 @@ resource "kubectl_manifest" "static_pvc" {
   })
 
   depends_on = [
-    module.eks_blueprints_addons,
+    aws_eks_addon.aws_fsx_csi_driver,
     kubectl_manifest.storage_class,
     kubectl_manifest.static_pv,
     aws_fsx_lustre_file_system.this,

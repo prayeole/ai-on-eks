@@ -11,8 +11,7 @@ spec:
   template:
     metadata:
       labels:
-        NodeGroupType: g5-gpu-karpenter
-        NodePool: g5-gpu-karpenter
+        amiFamily: ${ami_family}
         accelerator: nvidia
         gpuType: a10g
         instanceType: g5-gpu-karpenter

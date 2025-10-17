@@ -1,7 +1,7 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: x86-cpu-karpenter
+  name: g6-gpu-karpenter
 spec:
   disruption:
     budgets:
@@ -12,26 +12,31 @@ spec:
     metadata:
       labels:
         amiFamily: ${ami_family}
-        instanceType: x86-cpu-karpenter
+        accelerator: nvidia
+        gpuType: l4s
+        instanceType: g6-gpu-karpenter
         type: karpenter
     spec:
       expireAfter: 720h
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: x86-cpu-karpenter
+        name: g6-gpu-karpenter
       requirements:
         - key: karpenter.k8s.aws/instance-family
           operator: In
           values:
-            - m6i
+            - g6
         - key: karpenter.k8s.aws/instance-size
           operator: In
           values:
-            - xlarge
             - 2xlarge
             - 4xlarge
             - 8xlarge
+            - 12xlarge
+            - 16xlarge
+            - 24xlarge
+            - 48xlarge
         - key: kubernetes.io/arch
           operator: In
           values:
@@ -40,6 +45,9 @@ spec:
           operator: In
           values:
             - on-demand
-            - spot
+      taints:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          value: Exists
       terminationGracePeriod: 48h
   weight: 100

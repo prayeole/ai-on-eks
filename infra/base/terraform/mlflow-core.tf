@@ -1,3 +1,17 @@
+locals {
+  mlflow_values = templatefile("${path.module}/helm-values/mlflow-tracking-values.yaml", {
+    mlflow_sa   = local.mlflow_service_account
+    mlflow_irsa = try(module.mlflow_irsa[0].iam_role_arn, "")
+    # MLflow Postgres RDS Config
+    mlflow_db_username = local.mlflow_name
+    mlflow_db_password = try(sensitive(aws_secretsmanager_secret_version.postgres[0].secret_string), "")
+    mlflow_db_name     = try(module.db[0].db_instance_name, "")
+    mlflow_db_host     = try(element(split(":", module.db[0].db_instance_endpoint), 0), "")
+    # S3 bucket config for artifacts
+    s3_bucket_name = try(module.mlflow_s3_bucket[0].s3_bucket_id, "")
+  })
+}
+
 #---------------------------------------------------------------
 # RDS Postgres Database for MLflow Backend
 #---------------------------------------------------------------
@@ -244,4 +258,20 @@ data "aws_iam_policy_document" "mlflow" {
       "rds-db:connect",
     ]
   }
+}
+
+resource "kubectl_manifest" "mlflow_tracking_server" {
+  count = var.enable_mlflow_tracking ? 1 : 0
+  yaml_body = templatefile("${path.module}/argocd-addons/mlflow-tracking-server.yaml", {
+    mlflow_namespace = try(kubernetes_namespace_v1.mlflow[0].metadata[0].name, local.mlflow_namespace)
+    user_values_yaml = indent(8, local.mlflow_values)
+  })
+
+  depends_on = [
+    helm_release.argocd,
+    aws_secretsmanager_secret_version.postgres,
+    module.mlflow_irsa,
+    module.mlflow_s3_bucket,
+    module.db
+  ]
 }
