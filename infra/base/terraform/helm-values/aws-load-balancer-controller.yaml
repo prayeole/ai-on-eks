@@ -4,7 +4,7 @@ serviceAccount:
   create: true
   name: ${service_account}
 
-enableServiceMutatorWebhook: false
+enableServiceMutatorWebhook: ${enable_service_mutator_webhook}
 
 region: ${region}
 
