@@ -18,7 +18,6 @@ spec:
         # Target only GPU nodes with accelerator: nvidia label
         nodeSelector:
           karpenter.k8s.aws/instance-gpu-manufacturer: nvidia
-          amiFamily: al2023 # We don't need the plugin for Bottlerocket
 
         # Enable GPU Feature Discovery (default: false)
         gfd:
@@ -40,7 +39,6 @@ spec:
                 operator: Exists
                 effect: NoSchedule
               - operator: "Exists"
-
   destination:
     server: https://kubernetes.default.svc
     namespace: nvidia-device-plugin
