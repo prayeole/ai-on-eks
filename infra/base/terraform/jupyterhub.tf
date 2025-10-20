@@ -1,5 +1,7 @@
 locals {
-  cognito_custom_domain = var.cognito_custom_domain
+  jupyter_single_user_sa_name = "${module.eks.cluster_name}-jupyterhub-single-user"
+  cognito_custom_domain       = var.cognito_custom_domain
+
   jupyterhub_values = templatefile("${path.module}/helm-values/jupyterhub-values-${var.jupyter_hub_auth_mechanism}.yaml", {
     ssl_cert_arn                = try(data.aws_acm_certificate.issued[0].arn, "")
     jupyterdomain               = try("https://${var.jupyterhub_domain}/hub/oauth_callback", "")
@@ -11,7 +13,7 @@ locals {
     client_secret               = var.oauth_jupyter_client_secret != "" ? var.oauth_jupyter_client_secret : try(aws_cognito_user_pool_client.user_pool_client[0].client_secret, "")
     user_pool_id                = try(aws_cognito_user_pool.pool[0].id, "")
     identity_pool_id            = try(aws_cognito_identity_pool.identity_pool[0].id, "")
-    jupyter_single_user_sa_name = kubernetes_service_account_v1.jupyterhub_single_user_sa[0].metadata[0].name
+    jupyter_single_user_sa_name = local.jupyter_single_user_sa_name
     region                      = var.region
   })
 }
@@ -49,7 +51,7 @@ module "jupyterhub_pod_identity" {
 resource "kubernetes_service_account_v1" "jupyterhub_single_user_sa" {
   count = var.enable_jupyterhub ? 1 : 0
   metadata {
-    name      = "${module.eks.cluster_name}-jupyterhub-single-user"
+    name      = local.jupyter_single_user_sa_name
     namespace = kubernetes_namespace.jupyterhub[count.index].metadata[0].name
   }
 }
@@ -232,6 +234,7 @@ resource "kubectl_manifest" "jupyterhub" {
     kubernetes_config_map_v1.notebook,
     kubernetes_persistent_volume_claim_v1.efs,
     kubernetes_persistent_volume_claim_v1.efs_shared,
+    kubernetes_service_account_v1.jupyterhub_single_user_sa,
     aws_efs_access_point.efs_persist_ap,
     aws_efs_access_point.efs_shared_ap
   ]
