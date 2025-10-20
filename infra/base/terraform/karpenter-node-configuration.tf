@@ -34,7 +34,8 @@ resource "kubectl_manifest" "ec2nodeclass" {
   yaml_body = each.value
   wait      = true
   depends_on = [
-    helm_release.karpenter
+    helm_release.karpenter,
+    aws_ec2_tag.cluster_primary_security_group
   ]
 }
 
@@ -44,6 +45,7 @@ resource "kubectl_manifest" "nodepool" {
   yaml_body = each.value
 
   depends_on = [
-    helm_release.karpenter
+    helm_release.karpenter,
+    kubectl_manifest.ec2nodeclass
   ]
 }

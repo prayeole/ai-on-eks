@@ -7,7 +7,7 @@ subnetSelectorTerms:
       Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
 securityGroupSelectorTerms:
   - tags:
-      Name: ${cluster_name}-node
+      karpenter.sh/discovery: "${cluster_name}"
 %{ if enable_soci_snapshotter && !soci_snapshotter_use_instance_store ~}
 instanceStorePolicy: RAID0
 %{ endif ~}

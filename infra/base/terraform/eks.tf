@@ -69,38 +69,8 @@ module "eks" {
     [data.aws_iam_session_context.current.issuer_arn]
   ))
 
-
-
-  #---------------------------------------
-  # Note: This can further restricted to specific required for each Add-on and your application
-  #---------------------------------------
-  # Extend cluster security group rules
-  security_group_additional_rules = {
-    ingress_nodes_ephemeral_ports_tcp = {
-      description                = "Nodes on ephemeral ports"
-      protocol                   = "tcp"
-      from_port                  = 0
-      to_port                    = 65535
-      type                       = "ingress"
-      source_node_security_group = true
-    }
-  }
-
-  node_security_group_additional_rules = {
-    # Allows Control Plane Nodes to talk to Worker nodes on all ports.
-    # Added this to simplify the example and further avoid issues with Add-ons communication with Control plane.
-    # This can be restricted further to specific port based on the requirement for each Add-on
-    # e.g., coreDNS 53, metrics-server 4443.
-    # Update this according to your security requirements if needed
-    ingress_cluster_to_node_all_traffic = {
-      description                   = "Cluster API to Nodegroup all traffic"
-      protocol                      = "-1"
-      from_port                     = 0
-      to_port                       = 0
-      type                          = "ingress"
-      source_cluster_security_group = true
-    }
-  }
+  create_security_group      = false
+  create_node_security_group = false
 
   eks_managed_node_groups = merge({
     #  It's recommended to have a Managed Node group for hosting critical add-ons
@@ -305,11 +275,19 @@ module "eks" {
   tags = local.tags
 }
 
+# Add the Karpenter discovery tag only to the cluster primary security group
+# by default if using the eks module tags, it will tag all resources with this tag, which is not needed.
+resource "aws_ec2_tag" "cluster_primary_security_group" {
+  resource_id = module.eks.cluster_primary_security_group_id
+  key         = "karpenter.sh/discovery"
+  value       = local.name
+}
+
 #---------------------------------------------------------------
 # EKS Amazon CloudWatch Observability Role
 #---------------------------------------------------------------
 resource "aws_iam_role" "cloudwatch_observability_role" {
-  name = "${local.name}-eks-cw-agent-role"
+  name_prefix = "${local.name}-eks-cw-agent-role-"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

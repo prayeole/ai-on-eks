@@ -7,7 +7,7 @@ subnetSelectorTerms:
       Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
 securityGroupSelectorTerms:
   - tags:
-      Name: ${cluster_name}-node
+      karpenter.sh/discovery: "${cluster_name}"
 instanceStorePolicy: RAID0
 blockDeviceMappings:
   - deviceName: /dev/xvda

@@ -3,11 +3,12 @@ module "karpenter" {
   version = "~> 21.4"
 
   cluster_name = module.eks.cluster_name
-  namespace    = "karpenter"
+  namespace    = "kube-system"
+
+  iam_role_name = "KarpenterController-${local.name}"
 
   # Name needs to match role name passed to the EC2NodeClass
-  node_iam_role_use_name_prefix   = false
-  node_iam_role_name              = "karpenter-${local.name}"
+  node_iam_role_name              = "karpenterNode-${local.name}"
   create_pod_identity_association = true
 
   # Used to attach additional IAM policies to the Karpenter node IAM role
@@ -20,7 +21,7 @@ module "karpenter" {
 
 resource "helm_release" "karpenter" {
   name             = "karpenter"
-  namespace        = "karpenter"
+  namespace        = "kube-system"
   create_namespace = true
   repository       = "oci://public.ecr.aws/karpenter"
   chart            = "karpenter"
