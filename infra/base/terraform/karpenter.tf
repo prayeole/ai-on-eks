@@ -1,6 +1,6 @@
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 21.4"
+  version = "~> 21.6"
 
   cluster_name = module.eks.cluster_name
   namespace    = "kube-system"
@@ -25,7 +25,7 @@ resource "helm_release" "karpenter" {
   create_namespace = true
   repository       = "oci://public.ecr.aws/karpenter"
   chart            = "karpenter"
-  version          = "1.6.3"
+  version          = "1.8.1"
   wait             = true
 
   repository_username = data.aws_ecrpublic_authorization_token.token.user_name

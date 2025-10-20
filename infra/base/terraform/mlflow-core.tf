@@ -23,7 +23,7 @@ module "db" {
   identifier = local.mlflow_name
 
   engine               = "postgres"
-  engine_version       = "14.13"
+  engine_version       = "14.17"
   family               = "postgres14"
   major_engine_version = "14"
   instance_class       = "db.m6i.xlarge"
