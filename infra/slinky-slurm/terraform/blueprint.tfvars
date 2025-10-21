@@ -10,7 +10,7 @@ enable_slurm_operator            = true
 enable_ingress_nginx             = false
 enable_service_mutator_webhook   = true
 # region                         = "us-west-2"
-# eks_cluster_version            = "1.32"
+# eks_cluster_version            = "1.34"
 
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration

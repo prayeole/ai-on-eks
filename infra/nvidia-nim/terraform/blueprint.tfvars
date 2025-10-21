@@ -3,7 +3,7 @@ enable_aws_efs_csi_driver = true
 enable_argocd             = true
 enable_nvidia_nim_stack   = true
 # region                    = "us-west-2"
-# eks_cluster_version       = "1.33"
+# eks_cluster_version       = "1.34"
 
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration

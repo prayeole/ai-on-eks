@@ -8,7 +8,7 @@ solution_id                      = "SO9615"
 availability_zones_count         = 4
 enable_soci_snapshotter          = true
 # region                           = "us-west-2"
-# eks_cluster_version              = "1.33"
+# eks_cluster_version              = "1.34"
 
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration
