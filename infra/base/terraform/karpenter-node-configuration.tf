@@ -9,7 +9,7 @@ locals {
       max_user_namespaces                 = var.max_user_namespaces
     }
   )
-  ec2nodeclassnames = ["g5-nvidia", "g6-nvidia", "g6e-nvidia", "inf2-neuron", "trn1-neuron", "m6i-cpu"]
+  ec2nodeclassnames = distinct(flatten(concat(["g5-nvidia", "g6-nvidia", "g6e-nvidia", "inf2-neuron", "trn1-neuron", "m6i-cpu"], var.karpenter_additional_ec2nodeclassnames)))
   ec2nodeclassmanifests = {
     for name in local.ec2nodeclassnames :
     name => templatefile("${path.module}/karpenter-resources/templates/ec2nodeclass.tpl", {
@@ -34,6 +34,7 @@ resource "kubectl_manifest" "ec2nodeclass" {
   yaml_body = each.value
   wait      = true
   depends_on = [
+    module.karpenter,
     helm_release.karpenter,
     aws_ec2_tag.cluster_primary_security_group
   ]
@@ -45,6 +46,7 @@ resource "kubectl_manifest" "nodepool" {
   yaml_body = each.value
 
   depends_on = [
+    module.karpenter,
     helm_release.karpenter,
     kubectl_manifest.ec2nodeclass
   ]

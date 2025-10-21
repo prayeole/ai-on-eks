@@ -431,3 +431,15 @@ variable "ami_family" {
     error_message = "The ami_family must be set to either \"bottlerocket\" or \"al2023\"."
   }
 }
+
+variable "karpenter_version" {
+  description = "Karpenter version"
+  type        = string
+  default     = "1.8.1"
+}
+
+variable "karpenter_additional_ec2nodeclassnames" {
+  description = "Additional EC2 NodeClass Names"
+  type        = list(string)
+  default     = []
+}
