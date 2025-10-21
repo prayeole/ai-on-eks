@@ -443,3 +443,52 @@ variable "karpenter_additional_ec2nodeclassnames" {
   type        = list(string)
   default     = []
 }
+
+# S3 Model Storage Variables
+variable "enable_s3_models_storage" {
+  description = "Enable S3 model storage infrastructure"
+  type        = bool
+  default     = false
+}
+
+variable "s3_models_bucket_create" {
+  description = "Whether to create a new S3 bucket. If true, creates new bucket. If false, uses existing bucket specified in s3_models_bucket_name"
+  type        = bool
+  default     = true
+}
+
+variable "s3_models_bucket_name" {
+  description = "Name of the S3 bucket for storing ML models. If empty, will use naming pattern: {var.name}-models-{account_id}-{region}"
+  type        = string
+  default     = ""
+}
+
+variable "s3_models_sync_sa" {
+  description = "Name of the service account for model sync operations (upload/download/delete)"
+  type        = string
+  default     = "s3-models-sync-sa"
+}
+
+variable "s3_models_inference_sa" {
+  description = "Name of the service account for model inference operations (read-only)"
+  type        = string
+  default     = "inference-sa"
+}
+
+variable "s3_models_sync_sa_namespace" {
+  description = "Namespace for model sync service account"
+  type        = string
+  default     = "default"
+}
+
+variable "s3_models_inference_sa_namespace" {
+  description = "Namespace for model inference service account"
+  type        = string
+  default     = "default"
+}
+
+variable "s3_models_additional_buckets" {
+  description = "List of additional S3 bucket names that both service accounts should have access to"
+  type        = list(string)
+  default     = []
+}
