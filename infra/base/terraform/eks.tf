@@ -124,6 +124,7 @@ module "eks" {
     nvidia-gpu = {
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["g6.4xlarge"] # Use p4d for testing MIG
+      subnet_ids     = local.secondary_cidr_subnets
       iam_role_additional_policies = {
         # Not required, but used in the example to access the nodes to inspect mounted volumes
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
