@@ -25,26 +25,27 @@ frontend:
 nim-llm:
   enabled: true  # Deploy model for AIRA report generation
   image:
-    repository: nvcr.io/nim/meta/llama-3.1-8b-instruct # Change to nvcr.io/nim/meta/llama-3.3-70b-instruct for a larger model
-    tag: "1.8.4"
+    repository: nvcr.io/nim/meta/llama-3.3-70b-instruct #nvcr.io/nim/meta/llama-3.1-8b-instruct
+    tag: "1.8.5"
   resources:
     limits:
-      nvidia.com/gpu: 1 # Update depending on the model size and node type
+      nvidia.com/gpu: 8 # Update depending on the model size and node type
     requests:
-      nvidia.com/gpu: 1 # Update depending on the model size and node type
+      nvidia.com/gpu: 8 # Update depending on the model size and node type
   model:
-    name: "meta/llama-3.1-8b-instruct" # Change to meta/llama-3.3-70b-instruct for a larger model
+    name: "meta/llama-3.3-70b-instruct" #"meta/llama-3.1-8b-instruct"
   # Use g5 instances up to 12xlarge (excludes 48xlarge reserved for 49B model)
   nodeSelector:
     karpenter.k8s.aws/instance-family: g5
-    karpenter.k8s.aws/instance-size: 12xlarge
+    karpenter.k8s.aws/instance-size: 48xlarge
+    karpenter.sh/capacity-type: on-demand
   tolerations:
     - key: nvidia.com/gpu
       operator: Exists
       effect: NoSchedule
 
 config:
-  instruct_model_name: "meta/llama-3.1-8b-instruct" # Change to meta/llama-3.3-70b-instruct for a larger model
+  instruct_model_name: "meta/llama-3.3-70b-instruct" #"meta/llama-3.1-8b-instruct"
   instruct_base_url: "http://nim-llm.nv-aira.svc.cluster.local:8000/v1"  
   nemotron_model_name: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
   nemotron_base_url: "http://nim-llm.nv-nvidia-blueprint-rag.svc.cluster.local:8000/v1"

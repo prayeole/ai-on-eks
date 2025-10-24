@@ -1,121 +1,455 @@
 ---
-title: NVIDIA Deep Research Blueprint on Amazon EKS
+title: NVIDIA AI-Q Research Assistant on Amazon EKS
 sidebar_position: 9
 ---
 
+import CollapsibleContent from '../../../../src/components/CollapsibleContent';
+
 :::warning
-This blueprint requires the [NVIDIA Deep Research Infrastructure](../../../infra/nvidia-deep-research.md) to be deployed first. GPU instance access is required (g5 family recommended).
+Deployment of AI-Q Research Assistant on EKS requires access to GPU instances (g5, p4, or p5 families). If your deployment isn't working, it's often due to missing access to these resources. This blueprint relies on Karpenter autoscaling for dynamic GPU provisioning.
 :::
 
 :::info
-NVIDIA Deep Research combines RAG capabilities with AI-powered research assistance, leveraging multiple NVIDIA NIM microservices for enterprise-grade AI deployment on EKS.
+AI-Q is a research assistant powered by advanced reasoning models, NeMo Retriever microservices, and web search, designed to help you research any topic. This implementation provides production-ready deployment on Amazon EKS with dynamic GPU autoscaling.
+
+Source: [NVIDIA AI-Q Research Assistant Blueprint](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
 :::
 
-# NVIDIA Deep Research Blueprint
+# NVIDIA AI-Q Research Assistant on Amazon EKS
+
+## What is NVIDIA AI-Q Research Assistant?
+
+[NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) is a research assistant powered by advanced reasoning models, designed to help you research any topic. The platform combines:
+
+- **Advanced Reasoning Models**: Uses [Llama-3.3-Nemotron-Super-49B-v1.5](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) reasoning model with FP8 precision for high-quality report generation
+- **Multi-Modal RAG**: NVIDIA RAG Blueprint with NeMo Retriever microservices for document understanding across text, images, tables, and charts
+- **Web Search Integration**: Real-time web search powered by Tavily API to supplement on-premise sources
+- **NVIDIA NIM Microservices**: Production-ready inference containers for LLMs and vision models
+
+### Key Components
+
+Per the [official architecture](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant):
+
+**1. NVIDIA AI Workbench**
+- Simplified development environment
+- Local testing and customization
+- Easy configuration of different LLMs
+
+**2. NVIDIA RAG Blueprint**
+- Solution for querying large sets of on-premise multi-modal documents
+- Supports text, images, tables, and charts extraction
+- Semantic search and retrieval
+
+**3. NVIDIA NeMo Retriever Microservices**
+- Multi-modal document ingestion
+- Graphic elements detection
+- Table structure extraction  
+- PaddleOCR for text recognition
+
+**4. NVIDIA NIM Microservices**
+- Foundational LLMs for report writing and reasoning
+- [Llama-3.3-Nemotron-Super-49B-v1.5](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) reasoning model
+- Llama-3.3-70B-Instruct model for report generation
+
+**5. Web Search (Tavily)**
+- Supplements on-premise sources with real-time web search
+- Expands research beyond internal documents
 
 ## Overview
 
-The NVIDIA Deep Research Blueprint deploys an end-to-end AI research platform on Amazon EKS, featuring:
+This blueprint implements the **[NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)** on Amazon EKS, combining the [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag) with AI-Q components for comprehensive research capabilities.
 
-- **Multi-Modal RAG**: Process PDFs, images, tables, and charts with semantic search
-- **AIRA Research Assistant**: Generate comprehensive research reports with web search
-- **NVIDIA NIM Microservices**: Optimized inference containers for LLMs and vision models
-- **Karpenter Autoscaling**: Dynamic GPU provisioning for cost-effective scaling
-- **OpenSearch Serverless**: Managed vector database with AWS IRSA integration
+### Deployment Approach
+
+**Why This Setup Process?**
+While this implementation involves multiple steps, it provides several advantages:
+
+- **Complete Infrastructure**: Automatically provisions VPC, EKS cluster, OpenSearch Serverless, and monitoring stack
+- **Production Ready**: Includes enterprise-grade security, monitoring, and scalability features
+- **AWS Integration**: Leverages Karpenter autoscaling, IRSA authentication, and managed AWS services
+- **Cost Optimized**: Dynamic provisioning ensures you only pay for resources when needed
+- **Reproducible**: Infrastructure as Code ensures consistent deployments across environments
+
+### Key Features
+
+**Performance Optimizations:**
+- **Karpenter Autoscaling**: Dynamic GPU node provisioning based on workload demands
+- **Intelligent Instance Selection**: Automatically chooses optimal GPU instance types (G5, P4, P5)
+- **Bin-Packing**: Efficient GPU utilization across multiple workloads
+- **Mixed Capacity**: Combine on-demand and spot instances for cost savings
+
+**Enterprise Ready:**
+- **OpenSearch Serverless**: Managed vector database with automatic scaling
+- **IRSA Authentication**: IAM Roles for Service Accounts for secure AWS access
+- **Observability Stack**: Prometheus, Grafana, and DCGM for GPU monitoring
+- **Load Balancing**: AWS Load Balancer Controller for external access
 
 ## Architecture
 
-![NVIDIA Deep Research on EKS](../img/nvidia-deep-research-arch.png)
+The deployment uses Amazon EKS with Karpenter-based dynamic provisioning:
+
+![NVIDIA AI-Q on EKS](../img/nvidia-deep-research-arch.png)
+
+**Infrastructure Components:**
+- **VPC and Networking**: Standard VPC with secondary CIDR for extended pod networking
+- **EKS Cluster**: Managed Kubernetes with Karpenter for GPU autoscaling
+- **OpenSearch Serverless**: Vector database with IRSA integration
+- **Monitoring Stack**: Prometheus, Grafana, and NVIDIA DCGM
+- **Storage**: Amazon EFS for shared data and model caching
 
 ### RAG Pipeline Architecture
 
 ![RAG Pipeline with OpenSearch](../img/nvidia-rag-opensearch-arch.png)
 
-### RAG Pipeline Components
+The [RAG pipeline](https://github.com/NVIDIA-AI-Blueprints/rag) processes documents through multiple specialized NIM microservices:
 
-1. **49B Nemotron LLM** (8x A10G GPUs)
-   - Primary reasoning and generation model
-   - Query rewriting and decomposition
-   - Filter expression generation
+**1. Llama-3.3-Nemotron-Super-49B-v1.5**
+- [Advanced reasoning model](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5)
+- Primary reasoning and generation for both RAG and report writing
+- Query rewriting and decomposition
+- Filter expression generation
 
-2. **Embedding & Reranking** (1 GPU each)
-   - LLama 3.2 NV-EmbedQA (2048-dim embeddings)
-   - LLama 3.2 NV-RerankQA (relevance scoring)
+**2. Embedding & Reranking**
+- LLama 3.2 NV-EmbedQA: 2048-dim embeddings
+- LLama 3.2 NV-RerankQA: Relevance scoring
 
-3. **NV-Ingest Pipeline** (3-4 GPUs)
-   - PaddleOCR for text extraction
-   - Page/Graphic/Table element detection
-   - Multi-modal content processing
+**3. NV-Ingest Pipeline**
+- **PaddleOCR**: Text extraction from images
+- **Page Elements**: Document layout understanding
+- **Graphic Elements**: Chart and diagram detection
+- **Table Structure**: Tabular data extraction
 
-4. **AIRA Components** (1 GPU)
-   - 8B Instruct model for report generation
-   - Web search via Tavily API
-   - React frontend with NGINX proxy
+**4. AI-Q Research Assistant Components**
+- Llama-3.3-70B-Instruct model for report generation (optional, 2 GPUs)
+- Web search via Tavily API
+- React frontend with NGINX proxy
+- Backend orchestration for research workflows
 
-### Karpenter-Based Scheduling
+### Karpenter-Based GPU Scheduling
 
-All components use Karpenter labels for automatic GPU provisioning:
+:::tip GPU Instance Flexibility
+This blueprint is pre-configured with **G5 instances (A10G GPUs)** to provide a cost-effective starting point. However, **you can easily switch to P4 (A100) or P5 (H100) instances** by modifying the Helm values files. The infrastructure includes Karpenter NodePools for G5, G6, G6e, P4, and P5 instance families - simply change the `nodeSelector` labels to match your performance and budget requirements.
+:::
+
+All components use Karpenter labels for automatic provisioning. **Default configuration (G5 instances)**:
 
 ```yaml
-# 49B LLM - requires g5.48xlarge
+# Example: 8-GPU workloads (49B/70B models)
 nodeSelector:
-  karpenter.k8s.aws/instance-family: g5
-  karpenter.k8s.aws/instance-size: 48xlarge
+  karpenter.k8s.aws/instance-family: g5  # Use G5 (A10G GPUs)
+  karpenter.k8s.aws/instance-size: 48xlarge  # 8x A10G
   karpenter.sh/capacity-type: on-demand
 
-# 1-GPU workloads - uses g5.xlarge through g5.12xlarge
+# Example: 1-GPU workloads (embedding, reranking, OCR)
 nodeSelector:
-  karpenter.k8s.aws/instance-family: g5
-  karpenter.k8s.aws/instance-size: 12xlarge
+  karpenter.k8s.aws/instance-family: g5  # Use G5 (A10G GPUs)
+  karpenter.k8s.aws/instance-size: 12xlarge  # Up to 4x A10G
 ```
 
-**No manual node selection required** - Karpenter handles instance provisioning automatically!
+**To use different GPU types**, update the `instance-family` in your Helm values:
+
+```yaml
+# For P5 (H100 GPUs) - highest performance
+nodeSelector:
+  karpenter.k8s.aws/instance-family: p5
+  karpenter.k8s.aws/instance-size: 48xlarge  # 8x H100
+
+# For P4 (A100 GPUs) - high performance
+nodeSelector:
+  karpenter.k8s.aws/instance-family: p4d
+  karpenter.k8s.aws/instance-size: 24xlarge  # 8x A100
+
+# For G6e (L40S GPUs) - balanced performance
+nodeSelector:
+  karpenter.k8s.aws/instance-family: g6e
+  karpenter.k8s.aws/instance-size: 48xlarge  # 8x L40S
+```
+
+**No manual node creation required** - Karpenter automatically provisions the right instances based on your `nodeSelector` configuration!
 
 ## Prerequisites
 
-1. **Infrastructure**: Deploy [NVIDIA Deep Research Infrastructure](../../../infra/nvidia-deep-research.md)
-2. **NGC API Key**: [Register for NGC access](https://org.ngc.nvidia.com/setup/personal-keys)
-3. **Tavily API Key**: [Get API key from Tavily](https://tavily.com/)
-4. **kubectl & Helm**: Command-line tools configured
-5. **OpenSearch Endpoint**: Retrieved from Terraform outputs
+**System Requirements**: Any Linux/macOS system with AWS CLI access
 
-## Deployment
+Install the following tools:
 
-### Step 1: Configure Karpenter
+- **AWS CLI**: Configured with appropriate permissions ([installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
+- **kubectl**: Kubernetes command-line tool ([installation guide](https://kubernetes.io/docs/tasks/tools/install-kubectl/))
+- **helm**: Kubernetes package manager ([installation guide](https://helm.sh/docs/intro/install/))
+- **terraform**: Infrastructure as code tool ([installation guide](https://learn.hashicorp.com/tutorials/terraform/install-cli))
+- **git**: Version control ([installation guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git))
 
-Increase g5 NodePool memory limit for GPU workloads:
+### Required API Tokens
+
+- **[NGC API Token](https://org.ngc.nvidia.com/setup/personal-keys)**: Required for accessing NVIDIA NIM containers and AI Foundation models
+  - Sign up at [NVIDIA NGC](https://org.ngc.nvidia.com/)
+  - Generate an API key from your account settings
+  - Set as `NGC_API_KEY` environment variable
+  - Note: NVIDIA AI Enterprise license required for local hosting of NIM microservices
+- **[Tavily API Key](https://tavily.com/)**: Required for AI-Q web search functionality
+  - Create account at [Tavily](https://tavily.com/)
+  - Generate API key from dashboard
+  - Set as `TAVILY_API_KEY` environment variable
+
+### GPU Instance Access
+
+Ensure your AWS account has access to GPU instances. This blueprint supports multiple instance families through Karpenter NodePools:
+
+**Supported GPU Instance Families:**
+
+| Instance Family | GPU Type | Performance Profile | Use Case |
+|----------------|----------|---------------------|----------|
+| **G5** (default) | NVIDIA A10G | Cost-effective, 24GB VRAM | Production workloads, development |
+| **G6e** | NVIDIA L40S | Balanced, 48GB VRAM | High-memory models |
+| **P4d/P4de** | NVIDIA A100 | High-performance, 40/80GB VRAM | Large-scale production |
+| **P5/P5e/P5en** | NVIDIA H100 | Ultra-high performance, 80GB VRAM | Maximum performance |
+
+**Instance Sizing:**
+- **8-GPU workloads** (49B/70B models): Use `.48xlarge` (G5/P5) or `.24xlarge` (P4)
+- **1-4 GPU workloads** (microservices): Use `.xlarge` through `.12xlarge` (G5/G6e)
+
+> **Note**: G5 instances are pre-configured in the Helm values to provide an accessible starting point. You can switch to P4/P5/G6e instances by editing the `nodeSelector` in the Helm values files - no infrastructure changes required.
+
+<CollapsibleContent header={<h2><span>Deploying the Solution</span></h2>}>
+
+Complete the following steps to deploy NVIDIA Deep Research on Amazon EKS:
+
+### Step 1: Clone the Repository
 
 ```bash
-kubectl patch nodepool g5-gpu-karpenter --type='json' \
-  -p='[{"op": "replace", "path": "/spec/limits/memory", "value": "2000Gi"}]'
+git clone https://github.com/awslabs/ai-on-eks.git && cd ai-on-eks
 ```
 
-### Step 2: Deploy RAG Blueprint
+### Step 2: Deploy Infrastructure
+
+Navigate to the infrastructure directory and run the installation script:
 
 ```bash
-export NGC_API_KEY="<your-ngc-api-key>"
-export OPENSEARCH_ENDPOINT="<from-terraform>"
+cd infra/nvidia-deep-research
+./install.sh
+```
+
+This command provisions your complete environment:
+- **VPC**: Subnets, security groups, NAT gateways, and internet gateway
+- **EKS Cluster**: With Karpenter for dynamic GPU provisioning
+- **OpenSearch Serverless**: Vector database with IRSA authentication
+- **Monitoring Stack**: Prometheus, Grafana, and AI/ML observability
+- **Karpenter NodePools**: G5, G6, G6e, P4, P5 instance support
+
+**Duration**: 15-30 minutes
+
+### Step 3: Configure kubectl
+
+```bash
+aws eks --region us-west-2 update-kubeconfig --name nvidia-deep-research
+```
+
+**Verify Cluster is Ready:**
+
+```bash
+# Verify Karpenter is running
+kubectl get pods -n karpenter
+
+# Check available NodePools
+kubectl get nodepools
+
+# Check EC2NodeClass
+kubectl get ec2nodeclasses
+```
+
+Expected NodePools:
+- `default` - For non-GPU workloads
+- `g5-gpu-karpenter` - For G5 GPU instances
+- `g6-gpu-karpenter` - For G6 GPU instances (optional)
+- `p4-gpu-karpenter` - For P4d/P4de GPU instances (A100)
+- `p5-gpu-karpenter` - For P5/P5e/P5en GPU instances (H100)
+
+### Step 4: Get Infrastructure Outputs
+
+```bash
+cd terraform/_LOCAL
+terraform output
+```
+
+Save these values for the next steps:
+- `opensearch_collection_endpoint`
+- AWS Account ID and Region
+
+### Step 5: Set Environment Variables
+
+```bash
+cd ../../../../blueprints/inference/nvidia-deep-research
+
+# Get AWS Account ID
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export REGION="us-west-2"
 
-helm upgrade --install rag \
+# OpenSearch Configuration (from Terraform output)
+export OPENSEARCH_SERVICE_ACCOUNT="opensearch-access-sa"
+export OPENSEARCH_NAMESPACE="nv-nvidia-blueprint-rag"
+export OPENSEARCH_ENDPOINT="<from-terraform-output>" # From the terraform output
+
+# NGC API Key
+export NGC_API_KEY="<your-ngc-api-key>"
+
+# Tavily API Key for AI-Q
+export TAVILY_API_KEY="<your-tavily-api-key>"
+```
+
+### Step 6: Integrate OpenSearch Files
+
+The RAG blueprint needs OpenSearch integration files:
+
+```bash
+# Clone RAG source code (v2.3.0)
+git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
+
+# Copy OpenSearch implementation files
+cp -r opensearch/vdb/opensearch rag/src/nvidia_rag/utils/vdb/
+cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py 
+cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
+cp opensearch/pyproject.toml rag/pyproject.toml
+```
+
+### Step 7: Build OpenSearch-Enabled Docker Images
+
+Build custom Docker images with OpenSearch support and push to ECR:
+
+```bash
+# Login to NGC registry
+docker login nvcr.io
+# username: $oauthtoken
+# password: <your NGC API key>
+
+# Login to ECR
+aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+
+# Build and push OpenSearch-enabled RAG images to ECR
+./opensearch/build-opensearch-images.sh
+```
+
+This script will:
+- Build Docker images with OpenSearch integration
+- Tag images with version `2.3.0-opensearch`
+- Push to your ECR registry in the specified region
+
+### Step 8: Deploy RAG Blueprint with OpenSearch
+
+Deploy the RAG Blueprint using OpenSearch-enabled images:
+
+```bash
+# Set deployment variables
+export ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+export IMAGE_TAG="2.3.0-opensearch"
+
+# Deploy RAG with OpenSearch configuration
+helm upgrade --install rag -n nv-nvidia-blueprint-rag \
   https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
-  -n nv-nvidia-blueprint-rag --create-namespace \
-  -f helm/helm-values/rag-values-os.yaml \
-  --set imagePullSecret.password="${NGC_API_KEY}" \
-  --set ngcApiSecret.password="${NGC_API_KEY}"
+  --create-namespace \
+  --set imagePullSecret.password=$NGC_API_KEY \
+  --set ngcApiSecret.password=$NGC_API_KEY \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=$OPENSEARCH_SERVICE_ACCOUNT \
+  --set image.repository="${ECR_REGISTRY}/nvidia-rag-server" \
+  --set image.tag="${IMAGE_TAG}" \
+  --set ingestor-server.image.repository="${ECR_REGISTRY}/nvidia-rag-ingestor" \
+  --set ingestor-server.image.tag="${IMAGE_TAG}" \
+  --set envVars.APP_VECTORSTORE_URL="${OPENSEARCH_ENDPOINT}" \
+  --set envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
+  --set ingestor-server.envVars.APP_VECTORSTORE_URL="${OPENSEARCH_ENDPOINT}" \
+  --set ingestor-server.envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
+  -f helm/helm-values/rag-values-os.yaml
+
+# Patch ingestor-server to use IRSA service account
+kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
+  -p "{\"spec\":{\"template\":{\"spec\":{\"serviceAccountName\":\"$OPENSEARCH_SERVICE_ACCOUNT\"}}}}"
 ```
 
-Karpenter will automatically provision:
-- 1x g5.48xlarge for the 49B model
-- 2x g5.12xlarge for the 1-GPU models (bin-packed)
-
-### Step 3: Deploy AIRA
+**Verify RAG Deployment:**
 
 ```bash
-export TAVILY_API_KEY="<your-tavily-api-key>"
+# Check all pods in RAG namespace
+kubectl get all -n nv-nvidia-blueprint-rag
 
+# Wait for all pods to be ready (this may take 10-20 minutes for model downloads)
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=rag -n nv-nvidia-blueprint-rag --timeout=1200s
+
+# Verify service accounts are using IRSA
+kubectl get pod -n nv-nvidia-blueprint-rag -l app.kubernetes.io/component=rag-server -o jsonpath='{.items[0].spec.serviceAccountName}'
+kubectl get pod -n nv-nvidia-blueprint-rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}'
+```
+
+### Step 9: Configure RAG Load Balancers
+
+Expose RAG services via AWS Network Load Balancers:
+
+```bash
+# Patch frontend service to LoadBalancer
+kubectl patch svc rag-frontend -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+
+# Patch ingestor-server service to LoadBalancer
+kubectl patch svc ingestor-server -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
+
+### Step 10: Setup Helm Repositories for AI-Q
+
+Add required Helm repositories:
+
+```bash
+# Add NGC Helm repositories
+helm repo add nim https://helm.ngc.nvidia.com/nim \
+  --username='$oauthtoken' \
+  --password="${NGC_API_KEY}" \
+  --force-update
+
+helm repo add nvidia-nim https://helm.ngc.nvidia.com/nim/nvidia/ \
+  --username='$oauthtoken' \
+  --password="${NGC_API_KEY}" \
+  --force-update
+
+helm repo add nemo-microservices https://helm.ngc.nvidia.com/nvidia/nemo-microservices \
+  --username='$oauthtoken' \
+  --password="${NGC_API_KEY}" \
+  --force-update
+
+# Update all repositories
+helm repo update
+
+# Update dependencies for the local AI-Q chart
+helm dependency update helm/aiq-aira
+```
+
+### Step 11: Deploy AI-Q Research Assistant
+
+```bash
+# Verify TAVILY_API_KEY is set
+echo "Tavily API Key: ${TAVILY_API_KEY:0:10}..."
+
+# Deploy AI-Q using local Helm chart
 helm upgrade --install aira helm/aiq-aira \
   -n nv-aira --create-namespace \
   -f helm/helm-values/aira-values.eks.yaml \
@@ -124,147 +458,345 @@ helm upgrade --install aira helm/aiq-aira \
   --set config.tavily_api_key="$TAVILY_API_KEY"
 ```
 
-Karpenter provisions an additional g5 instance for AIRA.
+This deploys:
+- **AI-Q Backend**: Research assistant functionality
+- **70B Instruct Model**: For report generation
+- **NGINX Proxy**: Routes requests to RAG and AI-Q services
+- **Frontend**: User interface
 
-### Step 4: Access Frontend
+Karpenter provisions an additional GPU instance for the AI-Q 70B model (default: g5.48xlarge).
+
+**Verify AI-Q Deployment:**
 
 ```bash
-# Get AIRA frontend URL
-kubectl get svc aira-aira-frontend -n nv-aira
+# Check all AI-Q components
+kubectl get all -n nv-aira
 
-# Get RAG frontend URL (optional)
-kubectl get svc rag-frontend -n nv-nvidia-blueprint-rag
+# Wait for all components to be ready
+kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=600s
+
+# Check pod distribution across GPU nodes
+kubectl get pods -n nv-aira -o wide
 ```
 
-## Features
+### Step 12: Configure AI-Q Load Balancer
 
-### RAG Capabilities
+Expose AI-Q frontend via AWS Network Load Balancer:
 
-- **Multi-modal Document Processing**
-  - Extract text, tables, charts, and images from PDFs
-  - OCR for scanned documents
-  - Audio transcription
+```bash
+# Patch AI-Q frontend service to LoadBalancer
+kubectl patch svc aira-aira-frontend -n nv-aira -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
 
-- **Advanced Retrieval**
-  - Dense vector search with embeddings
-  - Reranking for improved relevance
-  - Query decomposition for complex questions
-  - Reflection for groundedness checking
+### Step 13: Access Services
 
-- **Generation Features**
-  - Citation support with source attribution
-  - Conversation history for multi-turn chat
-  - Streaming responses
-  - Configurable temperature and top-p
+```bash
+# Get AI-Q frontend URL
+echo "AI-Q Frontend: http://$(kubectl get svc aira-aira-frontend -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):3001"
 
-### AIRA Research Assistant
+# Get RAG frontend URL (optional)
+echo "RAG Frontend: http://$(kubectl get svc rag-frontend -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):3000"
 
-- **Automated Research Reports**
-  - Web search integration via Tavily
-  - Multi-source information synthesis
-  - Structured report generation
+# Get Ingestor API URL (for data ingestion)
+echo "Ingestor API: http://$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):8082"
+```
 
-- **RAG Integration**
-  - Query private knowledge base
-  - Combine web and internal sources
-  - Citation tracking
+> **Note**: The load balancer endpoints may take up to 5 minutes to be provisioned and become accessible after deployment.
 
-## GPU Utilization
+**Access the application:**
+- **AI-Q Research Assistant**: Open the AI-Q Frontend URL in your browser to generate comprehensive research reports
+- **RAG Frontend** (optional): Test the RAG application directly
+- **Ingestor API** (optional): Upload documents for processing
+
+</CollapsibleContent>
+
+## Test and Validate
+
+### Verify Deployment
+
+Check that all components are running:
+
+```bash
+# Check RAG pods
+kubectl get pods -n nv-nvidia-blueprint-rag
+
+# Check AIRA pods
+kubectl get pods -n nv-aira
+
+# Check Karpenter provisioned GPU nodes
+kubectl get nodes -l nvidia.com/gpu.present=true
+```
+
+### Access Frontend
+
+```bash
+# Get the AI-Q frontend URL
+AI_Q_URL=$(kubectl get svc aira-aira-frontend -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "AI-Q Frontend: http://${AI_Q_URL}:3001"
+
+# Get the RAG frontend URL (optional)
+RAG_URL=$(kubectl get svc rag-frontend -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "RAG Frontend: http://${RAG_URL}:3000"
+
+# Open AI-Q in your browser
+open http://${AI_Q_URL}:3001  # macOS
+# xdg-open http://${AI_Q_URL}:3001  # Linux
+```
+
+## Monitor and Observe
+
+### Grafana Dashboard
+
+Access Grafana for visualization:
+
+```bash
+kubectl port-forward -n kube-prometheus-stack svc/kube-prometheus-stack-grafana 3000:80
+
+# Default credentials: admin/prom-operator
+```
+
+### GPU Utilization
 
 Monitor GPU allocation across nodes:
 
 ```bash
-# Check g5 nodes
-kubectl get nodes -l karpenter.k8s.aws/instance-family=g5
+# Check all GPU nodes
+kubectl get nodes -l nvidia.com/gpu.present=true
+
+# Check nodes by instance family (adjust based on your deployment)
+kubectl get nodes -l karpenter.k8s.aws/instance-family=g5  # or p4d, p5, g6e
 
 # GPU allocation per node
-kubectl describe nodes -l karpenter.k8s.aws/instance-family=g5 | grep nvidia.com/gpu
+kubectl describe nodes -l nvidia.com/gpu.present=true | grep nvidia.com/gpu
 
-# Pod placement
+# Pod placement across GPU workloads
 kubectl get pods --all-namespaces -o wide | grep -E "nv-nvidia-blueprint-rag|nv-aira"
 ```
 
-Typical allocation:
-- **g5.48xlarge**: 8/8 GPUs (49B LLM)
-- **g5.12xlarge #1**: 4/4 GPUs (Embedding, Reranking, Graphic, Page)
-- **g5.12xlarge #2**: 4/4 GPUs (PaddleOCR, Table Structure, etc.)
-- **g5.8xlarge**: 1/1 GPU (AIRA 8B)
+### NVIDIA DCGM Metrics
 
-## Performance
+View GPU-specific metrics:
 
-### Typical Response Times
-
-- **Simple RAG Query**: 2-5 seconds
-- **Complex Research Report**: 30-60 seconds
-- **Document Ingestion**: ~1 second per page
-
-### Scalability
-
-- **Concurrent Users**: 10-20 with current setup
-- **Documents**: Tested with 1000s of documents in vector DB
-- **Auto-scaling**: Karpenter provisions additional nodes as needed
-
-## Cost Estimation
-
-Monthly costs (us-west-2, on-demand):
-
-| Resource | Quantity | Unit Cost | Monthly Cost |
-|----------|----------|-----------|--------------|
-| g5.48xlarge | 1 | $16.29/hr | ~$11,890 |
-| g5.12xlarge | 2 | $5.67/hr | ~$8,260 |
-| g5.8xlarge (spot) | 1 | ~$1.80/hr | ~$1,310 |
-| OpenSearch Serverless | 1 collection | ~$700 | $700 |
-| EKS Control Plane | 1 | $0.10/hr | $73 |
-| **Total** | | | **~$22,233/month** |
-
-**Cost savings with Karpenter**:
-- Consolidation during idle: Save 30-50% on auxiliary GPU nodes
-- Spot instances: 70% savings on 1-GPU workloads
-- Pay-per-use: No cost when nodes are scaled to zero
-
-## Troubleshooting
-
-### Pods Stuck in Pending
-
-**Symptom**: GPU pods remain in Pending state
-
-**Solution**: Check NodePool limits
 ```bash
-kubectl patch nodepool g5-gpu-karpenter --type='json' \
-  -p='[{"op": "replace", "path": "/spec/limits/memory", "value": "2000Gi"}]'
+# Port-forward to Prometheus
+kubectl port-forward -n kube-prometheus-stack svc/prometheus 9090:80
+
+# Query GPU metrics:
+# DCGM_FI_DEV_GPU_UTIL
+# DCGM_FI_DEV_MEM_COPY_UTIL
+# DCGM_FI_DEV_GPU_TEMP
 ```
 
-### Model Loading Timeout
+## Advanced Configuration
 
-**Symptom**: Pod fails startup probes
+### Switching GPU Instance Types
 
-**Solution**: Increase startup probe timeout or wait longer (10+ minutes for 49B model)
+The blueprint is pre-configured with G5 instances, but you can easily switch to other GPU types by editing the Helm values files.
 
-### OpenSearch Access Denied
+**Step 1: Edit Helm Values**
 
-**Symptom**: Ingestion fails with 403 errors
+For RAG components, edit `helm/helm-values/rag-values-os.yaml`:
 
-**Solution**: Verify IRSA service account configuration
-```bash
-kubectl describe sa opensearch-access-sa -n nv-nvidia-blueprint-rag
+```yaml
+# Example: Switch 49B model from G5 to P5 (H100)
+nim-llm:
+  nodeSelector:
+    karpenter.k8s.aws/instance-family: p5     # Change from g5 to p5
+    karpenter.k8s.aws/instance-size: 48xlarge # 8x H100
+    karpenter.sh/capacity-type: on-demand
 ```
 
-## Cleanup
+For AI-Q components, edit `helm/helm-values/aira-values.eks.yaml`:
+
+```yaml
+# Example: Switch 70B model to P4 (A100)
+nim-llm:
+  nodeSelector:
+    karpenter.k8s.aws/instance-family: p4d    # Change from g5 to p4d
+    karpenter.k8s.aws/instance-size: 24xlarge # 8x A100
+    karpenter.sh/capacity-type: on-demand
+```
+
+**Step 2: Redeploy**
+
+After updating the Helm values, simply re-run the `helm upgrade` command:
+
+```bash
+# Redeploy RAG with new instance type
+helm upgrade rag -n nv-nvidia-blueprint-rag \
+  https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \
+  -f helm/helm-values/rag-values-os.yaml \
+  --username '$oauthtoken' --password "${NGC_API_KEY}" \
+  # ... (other --set flags)
+
+# Redeploy AI-Q with new instance type
+helm upgrade aira helm/aiq-aira -n nv-aira \
+  -f helm/helm-values/aira-values.eks.yaml \
+  # ... (other --set flags)
+```
+
+Karpenter will automatically provision the new instance type. No infrastructure changes required!
+
+### Cost Optimization
+
+**Enable Spot Instances for 1-GPU workloads:**
+
+```yaml
+nodeSelector:
+  karpenter.sh/capacity-type: spot  # 70% cost savings
+```
+
+**Karpenter Consolidation:**
+
+Karpenter automatically consolidates underutilized nodes after 5 minutes of inactivity, reducing costs by 30-50%.
+
+### Data Ingestion from S3
+
+Ingest documents from an S3 bucket into the OpenSearch vector database:
+
+```bash
+# Set required environment variables
+export S3_BUCKET_NAME="your-pdf-bucket-name"  # Replace with your S3 bucket
+export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+# Optional: Configure additional settings
+export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
+export RAG_COLLECTION_NAME="multimodal_data"
+export UPLOAD_BATCH_SIZE="100"
+
+# Run the data ingestion script
+./data_ingestion.sh
+```
+
+> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
+
+## GPU Instance Support
+
+### Available Karpenter NodePools
+
+The infrastructure automatically provisions Karpenter NodePools for multiple GPU instance families:
+
+| NodePool | Instance Families | GPU Type | VRAM | Deployment Status |
+|----------|------------------|----------|------|------------------|
+| g5-gpu-karpenter | G5 | NVIDIA A10G | 24GB | **Pre-configured (default)** |
+| g6-gpu-karpenter | G6 | NVIDIA L4 | 24GB | Available |
+| g6e-gpu-karpenter | G6e | NVIDIA L40S | 48GB | Available |
+| p4-gpu-karpenter | P4d, P4de | NVIDIA A100 | 40/80GB | Available |
+| p5-gpu-karpenter | P5, P5e, P5en | NVIDIA H100 | 80GB | Available |
+
+**All NodePools are deployed by default** - you only need to update your Helm values to use a different instance family. No Terraform changes required.
+
+### Choosing the Right GPU
+
+**Performance Tiers:**
+- **G5 (A10G)**: Default configuration, cost-effective, suitable for most workloads
+- **G6e (L40S)**: Higher memory (48GB), better for memory-intensive models
+- **P4 (A100)**: 2-3x performance over A10G, recommended for production at scale
+- **P5 (H100)**: 4-6x performance over A10G, maximum throughput for demanding workloads
+
+**Selection Method:**
+
+Use `instance-family` label in Helm values to target specific GPU types:
+
+```yaml
+# Method 1: Target by instance family (recommended)
+nodeSelector:
+  karpenter.k8s.aws/instance-family: p5     # Targets P5/P5e/P5en
+
+# Method 2: Target by GPU type label
+nodeSelector:
+  gpuType: h100  # Karpenter chooses any H100-equipped instance
+```
+
+## Clean Up
 
 ```bash
 # Delete applications
 helm uninstall aira -n nv-aira
 helm uninstall rag -n nv-nvidia-blueprint-rag
 
-# Karpenter will automatically terminate idle GPU nodes after consolidation period
-# Or manually delete nodes
-kubectl delete nodes -l karpenter.k8s.aws/instance-family=g5
+# Wait for Karpenter to terminate idle nodes (5-10 minutes)
+# Or manually delete GPU nodes (replace instance-family as needed)
+kubectl delete nodes -l nvidia.com/gpu.present=true
+
+# Destroy infrastructure
+cd infra/nvidia-deep-research/terraform/_LOCAL
+terraform destroy -var-file=../blueprint.tfvars
 ```
 
-## Additional Resources
+**Duration**: ~10-15 minutes for complete teardown
 
-- [Detailed Deployment Guide](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-deep-research/README.md)
-- [NVIDIA AI Blueprints - RAG](https://github.com/NVIDIA-AI-Blueprints/rag)
-- [NVIDIA NIM Documentation](https://docs.nvidia.com/nim/)
-- [Karpenter on EKS](https://karpenter.sh/)
-- [OpenSearch Serverless Guide](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html)
+## References
+
+### Official NVIDIA Resources
+
+**📚 Documentation:**
+- [NVIDIA AI-Q Research Assistant GitHub](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant): Official AI-Q blueprint repository
+- [NVIDIA AI-Q on AI Foundation](https://build.nvidia.com/nvidia/aiq): AI-Q blueprint card and hosted version
+- [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag): Complete RAG platform documentation
+- [NVIDIA NIM Documentation](https://docs.nvidia.com/nim/): NIM microservices reference
+- [NVIDIA AI Enterprise](https://www.nvidia.com/en-us/data-center/products/ai-enterprise/): Enterprise AI platform
+
+**🤖 Models:**
+- [Llama-3.3-Nemotron-Super-49B-v1.5](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5): Advanced reasoning model (49B parameters, FP8)
+- [Llama-3.3-70B-Instruct](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct): Instruction-following model
+
+**📦 Container Images & Helm Charts:**
+- [NVIDIA NGC Catalog](https://catalog.ngc.nvidia.com/): Official container registry
+- [RAG Blueprint Helm Chart](https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag): Kubernetes deployment
+- [NVIDIA NIM Containers](https://catalog.ngc.nvidia.com/orgs/nim): Optimized inference containers
+
+### AI-on-EKS Blueprint Resources
+
+**🏗️ AI-on-EKS Blueprint Resources:**
+- [AI-on-EKS Repository](https://github.com/awslabs/ai-on-eks): Main blueprint repository
+- [AI-Q Blueprint on EKS](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-deep-research): EKS deployment code
+- [Infrastructure Code](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research): Terraform automation with Karpenter
+
+**📖 Documentation:**
+- [Detailed Deployment Guide](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-deep-research/README.md): Step-by-step EKS instructions
+- [OpenSearch Integration](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research/terraform/opensearch-serverless.tf): IRSA authentication setup
+- [Karpenter Configuration](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research/terraform/custom_karpenter.tf): P4/P5 GPU support
+
+### Related Technologies
+
+**☸️ Kubernetes & AWS:**
+- [Amazon EKS](https://aws.amazon.com/eks/): Managed Kubernetes service
+- [Karpenter](https://karpenter.sh/): Kubernetes node autoscaling
+- [OpenSearch Serverless](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html): Managed vector database
+- [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/): Kubernetes ingress
+
+**🤖 AI/ML Tools:**
+- [NVIDIA DCGM](https://developer.nvidia.com/dcgm): GPU monitoring
+- [Prometheus](https://prometheus.io/): Metrics collection
+- [Grafana](https://grafana.com/): Visualization dashboards
+
+## Next Steps
+
+1. **Explore Features**: Test multi-modal document processing with various file types
+2. **Scale Deployments**: Configure multi-region or multi-cluster setups
+3. **Integrate Applications**: Connect your applications to the RAG API endpoints
+4. **Monitor Performance**: Use Grafana dashboards for ongoing monitoring
+5. **Optimize Costs**: Implement auto-scaling and spot instance strategies
+6. **Custom Models**: Swap in your own fine-tuned models
+7. **Production Hardening**: Add authentication, rate limiting, and disaster recovery
+
+---
+
+This deployment provides a production-ready [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) environment on Amazon EKS with enterprise-grade features including Karpenter automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
+
+**Additional Resources:**
+- [AI-Q on NVIDIA AI Foundation](https://build.nvidia.com/nvidia/aiq): Try the hosted version
+- [AI-Q GitHub Repository](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant): Official source code and documentation
+- [Get Started Notebook](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant): Interactive deployment guide

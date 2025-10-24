@@ -34,12 +34,11 @@ Before proceeding with application deployment, ensure the following infrastructu
   - [Step 8: Verify RAG Deployment](#step-8-verify-rag-deployment)
 - [Data Ingestion from S3](#data-ingestion-from-s3)
 - [AI-Q Components Deployment](#ai-q-components-deployment)
-  - [Step 9: Configure Karpenter for GPU Workloads](#step-9-configure-karpenter-for-gpu-workloads)
-  - [Step 10: Setup Helm Repositories](#step-10-setup-helm-repositories)
-  - [Step 11: Deploy AIRA Components](#step-11-deploy-aira-components)
-  - [Step 12: Configure AIRA Load Balancer](#step-12-configure-aira-load-balancer)
-  - [Step 13: Verify AIRA Deployment](#step-13-verify-aira-deployment)
-  - [Step 14: Access Services](#step-14-access-services)
+  - [Step 9: Setup Helm Repositories](#step-9-setup-helm-repositories)
+  - [Step 10: Deploy AIRA Components](#step-10-deploy-aira-components)
+  - [Step 11: Configure AIRA Load Balancer](#step-11-configure-aira-load-balancer)
+  - [Step 12: Verify AIRA Deployment](#step-12-verify-aira-deployment)
+  - [Step 13: Access Services](#step-13-access-services)
 - [Optional: Access RAG Frontend](#optional-access-rag-frontend)
 - [Cleanup](#cleanup)
 - [Additional Resources](#additional-resources)
@@ -154,6 +153,9 @@ Build custom Docker images with OpenSearch support and push to ECR:
 # Login to NGC registry
 docker login nvcr.io  # username: $oauthtoken, password: NGC API Key
 
+# Login to ECR
+aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+
 # Build and push OpenSearch-enabled RAG images to ECR
 ./opensearch/build-opensearch-images.sh
 ```
@@ -201,8 +203,8 @@ kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
 
 This deploys:
 - **49B Nemotron Model** (8 GPUs) - Karpenter will provision g5.48xlarge
-- **Embedding & Reranking Models** (1 GPU each) - Scheduled on g5.xlarge through g5.12xlarge
-- **Data Ingestion Models** (1 GPU each) - Scheduled on g5.xlarge through g5.12xlarge
+- **Embedding & Reranking Models** (1 GPU each) - Karpenter will provision g5.xlarge through g5.12xlarge
+- **Data Ingestion Models** (1 GPU each) - Karpenter will provision g5.xlarge through g5.12xlarge
 - **RAG Server** with OpenSearch Serverless integration
 - **Frontend** for user interaction
 
@@ -281,20 +283,7 @@ export UPLOAD_BATCH_SIZE="100"
 
 ## AI-Q Components Deployment
 
-### Step 9: Configure Karpenter for GPU Workloads
-
-Increase the g5 NodePool memory limit to accommodate both RAG and AIRA GPU workloads:
-
-```bash
-# Increase memory limit from default (~1000Gi) to 2000Gi
-kubectl patch nodepool g5-gpu-karpenter --type='json' \
-  -p='[{"op": "replace", "path": "/spec/limits/memory", "value": "2000Gi"}]'
-
-# Verify the change
-kubectl get nodepool g5-gpu-karpenter -o jsonpath='{.spec.limits}' | jq .
-```
-
-### Step 10: Setup Helm Repositories
+### Step 9: Setup Helm Repositories
 
 Add required Helm repositories for AIRA deployment:
 
@@ -328,11 +317,11 @@ helm repo update
 helm dependency update helm/aiq-aira
 ```
 
-### Step 11: Deploy AIRA Components
+### Step 10: Deploy AIRA Components
 
 Deploy the AI-Q Research Assistant:
 
-> **Note**: The `helm/helm-values/aira-values.eks.yaml` file is pre-configured with Karpenter labels to automatically provision g5 instances (excluding g5.48xlarge reserved for the 49B model).
+> **Note**: The `helm/helm-values/aira-values.eks.yaml` file is pre-configured with Karpenter labels to automatically provision a g5.48xlarge instance for the 70B model (8 GPUs).
 
 ```bash
 # Verify TAVILY_API_KEY is set
@@ -349,11 +338,13 @@ helm upgrade --install aira helm/aiq-aira \
 
 This deploys:
 - **AIRA Backend**: Research assistant functionality
-- **8B Instruct Model**: For report generation
+- **70B Instruct Model**: For report generation (8 GPUs) - Karpenter will provision g5.48xlarge
 - **NGINX Proxy**: Routes requests to RAG and AIRA services
 - **Frontend**: User interface
 
-### Step 12: Configure AIRA Load Balancer
+Karpenter will provision an additional g5.48xlarge instance for the AI-Q 70B model.
+
+### Step 11: Configure AIRA Load Balancer
 
 Expose AIRA frontend via AWS Network Load Balancer:
 
@@ -373,7 +364,7 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 }'
 ```
 
-### Step 13: Verify AIRA Deployment
+### Step 12: Verify AIRA Deployment
 
 Check that all AIRA components are running:
 
@@ -388,7 +379,7 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=300s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 14: Access AI-Q Blueprint Frontend
+### Step 13: Access Services
 
 Get the Frontend URL:
 
