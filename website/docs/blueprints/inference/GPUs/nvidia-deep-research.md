@@ -554,50 +554,6 @@ open http://${AI_Q_URL}:3001  # macOS
 # xdg-open http://${AI_Q_URL}:3001  # Linux
 ```
 
-## Monitor and Observe
-
-### Grafana Dashboard
-
-Access Grafana for visualization:
-
-```bash
-kubectl port-forward -n kube-prometheus-stack svc/kube-prometheus-stack-grafana 3000:80
-
-# Default credentials: admin/prom-operator
-```
-
-### GPU Utilization
-
-Monitor GPU allocation across nodes:
-
-```bash
-# Check all GPU nodes
-kubectl get nodes -l nvidia.com/gpu.present=true
-
-# Check nodes by instance family (adjust based on your deployment)
-kubectl get nodes -l karpenter.k8s.aws/instance-family=g5  # or p4d, p5, g6e
-
-# GPU allocation per node
-kubectl describe nodes -l nvidia.com/gpu.present=true | grep nvidia.com/gpu
-
-# Pod placement across GPU workloads
-kubectl get pods --all-namespaces -o wide | grep -E "nv-nvidia-blueprint-rag|nv-aira"
-```
-
-### NVIDIA DCGM Metrics
-
-View GPU-specific metrics:
-
-```bash
-# Port-forward to Prometheus
-kubectl port-forward -n kube-prometheus-stack svc/prometheus 9090:80
-
-# Query GPU metrics:
-# DCGM_FI_DEV_GPU_UTIL
-# DCGM_FI_DEV_MEM_COPY_UTIL
-# DCGM_FI_DEV_GPU_TEMP
-```
-
 ## Advanced Configuration
 
 ### Switching GPU Instance Types
