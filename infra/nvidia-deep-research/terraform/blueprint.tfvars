@@ -44,6 +44,16 @@ gpu_nodegroup_3_max_size       = 1
 gpu_nodegroup_3_desired_size   = 1
 
 # -------------------------------------------------------------------------------------
+# Karpenter Custom NodePools Configuration
+#
+# Enable/disable P4 (A100) and P5 (H100) GPU instance support
+# P4 families: p4d, p4de (8x A100 - 40GB or 80GB VRAM)
+# P5 families: p5, p5e, p5en (1-8x H100)
+# -------------------------------------------------------------------------------------
+enable_p4_karpenter = true # p4d/p4de.24xlarge (8x A100)
+enable_p5_karpenter = true # p5*.{4,48}xlarge (1-8x H100)
+
+# -------------------------------------------------------------------------------------
 # OpenSearch Serverless Configuration
 # 
 # Set enable_opensearch_serverless = true to create everything:
