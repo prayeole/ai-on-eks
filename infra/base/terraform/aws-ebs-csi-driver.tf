@@ -1,4 +1,5 @@
 resource "aws_eks_addon" "aws_ebs_csi_driver" {
+  count                       = !var.enable_eks_auto_mode ? 1 : 0
   cluster_name                = module.eks.cluster_name
   addon_name                  = "aws-ebs-csi-driver"
   resolve_conflicts_on_update = "PRESERVE"

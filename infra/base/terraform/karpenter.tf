@@ -20,6 +20,7 @@ module "karpenter" {
 
 
 resource "helm_release" "karpenter" {
+  count            = !var.enable_eks_auto_mode ? 1 : 0
   name             = "karpenter"
   namespace        = "kube-system"
   create_namespace = true

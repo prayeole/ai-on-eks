@@ -15,7 +15,7 @@ locals {
 # Pod Identity for AWS Load Balancer Controller
 #---------------------------------------------------------------
 module "aws_load_balancer_controller_pod_identity" {
-  count   = var.enable_aws_load_balancer_controller ? 1 : 0
+  count   = var.enable_aws_load_balancer_controller && !var.enable_eks_auto_mode ? 1 : 0
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.2"
 
@@ -36,7 +36,7 @@ module "aws_load_balancer_controller_pod_identity" {
 # AWS Load Balancer Controller Application
 #---------------------------------------------------------------
 resource "kubectl_manifest" "aws_load_balancer_controller" {
-  count = var.enable_aws_load_balancer_controller ? 1 : 0
+  count = var.enable_aws_load_balancer_controller && !var.enable_eks_auto_mode ? 1 : 0
   yaml_body = templatefile("${path.module}/argocd-addons/aws-load-balancer-controller.yaml", {
     user_values_yaml = indent(8, local.aws_load_balancer_controller_values)
   })

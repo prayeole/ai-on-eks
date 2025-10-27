@@ -71,6 +71,12 @@ variable "enable_database_subnets" {
   default     = false
 }
 
+variable "enable_eks_auto_mode" {
+  description = "Whether or not to use auto mode for the cluster"
+  type        = bool
+  default     = false
+}
+
 # EKS Addons
 variable "enable_cluster_addons" {
   description = <<DESC

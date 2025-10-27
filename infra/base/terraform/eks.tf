@@ -9,7 +9,7 @@ locals {
 
   base_addons = {
     for name, enabled in var.enable_cluster_addons :
-    name => {} if enabled
+    name => {} if enabled && !var.enable_eks_auto_mode
   }
 
   # Extended configurations used for specific addons with custom settings
@@ -40,11 +40,11 @@ locals {
 # EKS Cluster
 #---------------------------------------------------------------
 module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 21.4"
-
+  source             = "terraform-aws-modules/eks/aws"
+  version            = "~> 21.6"
   name               = local.name
   kubernetes_version = var.eks_cluster_version
+  compute_config     = { enabled = var.enable_eks_auto_mode }
 
   #WARNING: Avoid using this option (cluster_endpoint_public_access = true) in preprod or prod accounts. This feature is designed for sandbox accounts, simplifying cluster deployment and testing.
   endpoint_public_access = true
@@ -77,6 +77,7 @@ module "eks" {
     #  It's recommended to use Karpenter to place your workloads instead of using Managed Node groups
     #  You can leverage nodeSelector and Taints/tolerations to distribute workloads across Managed Node group or Karpenter nodes.
     core_node_group = {
+      create      = !var.enable_eks_auto_mode
       name        = "core-node-group"
       description = "EKS Core node group for hosting system add-ons"
       # Filtering only Secondary CIDR private subnets starting with "100.".
@@ -122,6 +123,7 @@ module "eks" {
 
     # Node group for NVIDIA GPU workloads with NVIDIA K8s DRA Testing
     nvidia-gpu = {
+      create         = !var.enable_eks_auto_mode
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["g6.4xlarge"] # Use p4d for testing MIG
       subnet_ids     = local.secondary_cidr_subnets
@@ -186,6 +188,7 @@ module "eks" {
 
     }, length(var.capacity_block_reservation_id) > 0 ? {
     cbr = {
+      create         = !var.enable_eks_auto_mode
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["p4de.24xlarge"]
       iam_role_additional_policies = {
@@ -341,7 +344,7 @@ resource "kubernetes_storage_class" "default_gp3" {
     }
   }
 
-  storage_provisioner    = "ebs.csi.aws.com"
+  storage_provisioner    = var.enable_eks_auto_mode ? "ebs.csi.eks.amazonaws.com" : "ebs.csi.aws.com"
   reclaim_policy         = "Delete"
   allow_volume_expansion = true
   volume_binding_mode    = "WaitForFirstConsumer"
@@ -352,4 +355,101 @@ resource "kubernetes_storage_class" "default_gp3" {
   }
 
   depends_on = [kubernetes_annotations.disable_gp2]
+}
+
+################################################################################
+# EKS Auto Mode Specific Resources
+################################################################################
+
+################################################################################
+# EKS Auto Mode Node role access entry
+################################################################################
+resource "aws_eks_access_entry" "automode_node" {
+  count         = var.enable_eks_auto_mode ? 1 : 0
+  cluster_name  = module.eks.cluster_name
+  principal_arn = module.eks.node_iam_role_arn
+  type          = "EC2"
+}
+
+resource "aws_eks_access_policy_association" "automode_node" {
+  count        = var.enable_eks_auto_mode ? 1 : 0
+  cluster_name = module.eks.cluster_name
+  access_scope {
+    type = "cluster"
+  }
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAutoNodePolicy"
+  principal_arn = module.eks.node_iam_role_arn
+}
+
+################################################################################
+# EKS Auto Mode default NodePools & NodeClass
+################################################################################
+data "kubectl_path_documents" "automode_manifests" {
+  count   = var.enable_eks_auto_mode ? 1 : 0
+  pattern = "${path.module}/karpenter-resources/auto-mode/*.yaml"
+  vars = {
+    role                      = module.eks.node_iam_role_name
+    cluster_name              = module.eks.cluster_name
+    cluster_security_group_id = module.eks.cluster_primary_security_group_id
+    ami_family                = var.ami_family
+  }
+  depends_on = [
+    module.eks
+  ]
+}
+
+# workaround terraform issue with attributes that cannot be determined ahead because of module dependencies
+# https://github.com/gavinbunney/terraform-provider-kubectl/issues/58
+data "kubectl_path_documents" "automode_manifests_dummy" {
+  count   = var.enable_eks_auto_mode ? 1 : 0
+  pattern = "${path.module}/karpenter-resources/auto-mode/*.yaml"
+  vars = {
+    role                      = ""
+    cluster_name              = ""
+    cluster_security_group_id = ""
+    ami_family                = ""
+  }
+}
+
+resource "kubectl_manifest" "automode_manifests" {
+  count     = var.enable_eks_auto_mode ? length(data.kubectl_path_documents.automode_manifests_dummy[0].documents) : 0
+  yaml_body = element(data.kubectl_path_documents.automode_manifests[0].documents, count.index)
+}
+################################################################################
+# EKS Auto Mode Ingress
+################################################################################
+resource "kubectl_manifest" "automode_ingressclass_params" {
+  count     = var.enable_eks_auto_mode ? 1 : 0
+  yaml_body = <<YAML
+apiVersion: eks.amazonaws.com/v1
+kind: IngressClassParams
+metadata:
+  name: auto-alb
+spec:
+  scheme: internet-facing
+YAML
+  depends_on = [
+    module.eks
+  ]
+}
+
+resource "kubernetes_ingress_class_v1" "automode" {
+  count = var.enable_eks_auto_mode ? 1 : 0
+  metadata {
+    name = "auto-alb"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  spec {
+    controller = "eks.amazonaws.com/alb"
+    parameters {
+      api_group = "eks.amazonaws.com"
+      kind      = "IngressClassParams"
+      name      = "auto-alb"
+    }
+  }
+  depends_on = [
+    kubectl_manifest.automode_ingressclass_params
+  ]
 }
