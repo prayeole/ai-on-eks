@@ -343,8 +343,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: ["spot", "on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
@@ -385,8 +383,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: ["spot", "on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
@@ -427,8 +423,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: ["spot", "on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
@@ -463,8 +457,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: ["spot", "on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
@@ -501,8 +493,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: ["on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
@@ -539,8 +529,6 @@ module "data_addons" {
           - key: "karpenter.sh/capacity-type"
             operator: In
             values: [ "on-demand"]
-        limits:
-          cpu: 1000
         disruption:
           consolidationPolicy: WhenEmpty
           consolidateAfter: 300s
