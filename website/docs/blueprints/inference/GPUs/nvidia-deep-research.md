@@ -508,7 +508,20 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 
 ### Step 12: Data Ingestion from S3
 
-Ingest documents from an S3 bucket into the OpenSearch vector database:
+Ingest documents from an S3 bucket into the OpenSearch vector database using the provided batch ingestion script.
+
+**Prerequisites**: This step assumes you have an S3 bucket with documents you want to process and query.
+
+**Supported File Types**: The RAG pipeline supports multi-modal document ingestion including:
+- PDF documents
+- Text files (.txt, .md)
+- Images (.jpg, .png)
+- Office documents (.docx, .pptx)
+- HTML files
+
+The NeMo Retriever microservices will automatically extract text, tables, charts, and images from these documents.
+
+**Batch Ingestion from S3:**
 
 ```bash
 # Set required environment variables
@@ -524,7 +537,7 @@ export UPLOAD_BATCH_SIZE="100"
 ./data_ingestion.sh
 ```
 
-> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
+> **Note**: For testing purposes, you can also upload individual documents directly through the RAG or AIRA frontend UI in the next step. For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
 
 ### Step 13: Access Services
 
