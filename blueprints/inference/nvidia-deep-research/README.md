@@ -32,13 +32,13 @@ Before proceeding with application deployment, ensure the following infrastructu
   - [Step 6: Deploy RAG Blueprint with OpenSearch](#step-6-deploy-rag-blueprint-with-opensearch)
   - [Step 7: Configure Load Balancers](#step-7-configure-load-balancers)
   - [Step 8: Verify RAG Deployment](#step-8-verify-rag-deployment)
-- [Data Ingestion from S3](#data-ingestion-from-s3)
 - [AI-Q Components Deployment](#ai-q-components-deployment)
   - [Step 9: Setup Helm Repositories](#step-9-setup-helm-repositories)
   - [Step 10: Deploy AIRA Components](#step-10-deploy-aira-components)
   - [Step 11: Configure AIRA Load Balancer](#step-11-configure-aira-load-balancer)
   - [Step 12: Verify AIRA Deployment](#step-12-verify-aira-deployment)
-  - [Step 13: Access Services](#step-13-access-services)
+  - [Step 13: Data Ingestion from S3](#step-13-data-ingestion-from-s3)
+  - [Step 14: Access Services](#step-14-access-services)
 - [Optional: Access RAG Frontend](#optional-access-rag-frontend)
 - [Cleanup](#cleanup)
 - [Additional Resources](#additional-resources)
@@ -145,8 +145,8 @@ Clone the RAG source code and add OpenSearch implementation:
 git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
 
 # Download example OpenSearch implementation from NVIDIA repository
-COMMIT_HASH="INSERT_COMMIT_HASH_HERE"
-curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=4 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
+COMMIT_HASH="fe6ec2e5c53b6134d1743fc975e5eef56e660b04"
+curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=5 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
 ```
 
 Integrate OpenSearch support into RAG source:
@@ -270,26 +270,6 @@ kubectl get pod -n nv-nvidia-blueprint-rag -l app.kubernetes.io/component=rag-se
 kubectl get pod -n nv-nvidia-blueprint-rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}' | xargs -I {} echo "Ingestor Server service account: {}"
 ```
 
-## Data Ingestion from S3
-
-Ingest documents from an S3 bucket into the OpenSearch vector database using the provided batch ingestion script:
-
-```bash
-# Set required environment variables
-export S3_BUCKET_NAME="your-pdf-bucket-name" # Replace with your S3 bucket name
-export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-
-# Optional: Configure additional settings
-export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
-export RAG_COLLECTION_NAME="multimodal_data"
-export UPLOAD_BATCH_SIZE="100"
-
-# Run the data ingestion script
-./data_ingestion.sh
-```
-
-> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
-
 ## AI-Q Components Deployment
 
 ### Step 9: Setup Helm Repositories
@@ -388,7 +368,27 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=300s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 13: Access Services
+### Step 13: Data Ingestion from S3
+
+Ingest documents from an S3 bucket into the OpenSearch vector database using the provided batch ingestion script:
+
+```bash
+# Set required environment variables
+export S3_BUCKET_NAME="your-pdf-bucket-name" # Replace with your S3 bucket name
+export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+# Optional: Configure additional settings
+export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
+export RAG_COLLECTION_NAME="multimodal_data"
+export UPLOAD_BATCH_SIZE="100"
+
+# Run the data ingestion script
+./data_ingestion.sh
+```
+
+> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
+
+### Step 14: Access Services
 
 Get the Frontend URL:
 

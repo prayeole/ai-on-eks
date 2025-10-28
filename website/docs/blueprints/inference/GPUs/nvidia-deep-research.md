@@ -10,7 +10,7 @@ Deployment of AI-Q Research Assistant on EKS requires access to GPU instances (g
 :::
 
 :::info
-AI-Q is a research assistant powered by advanced reasoning models, NeMo Retriever microservices, and web search, designed to help you research any topic. This implementation provides production-ready deployment on Amazon EKS with dynamic GPU autoscaling.
+AI-Q is a research assistant powered by advanced reasoning models, NeMo Retriever microservices, and web search, designed to help you research any topic. This implementation provides deployment on Amazon EKS with dynamic GPU autoscaling.
 
 Source: [NVIDIA AI-Q Research Assistant Blueprint](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
 :::
@@ -24,7 +24,7 @@ Source: [NVIDIA AI-Q Research Assistant Blueprint](https://github.com/NVIDIA-AI-
 - **Advanced Reasoning Models**: Uses [Llama-3.3-Nemotron-Super-49B-v1.5](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) reasoning model with FP8 precision for high-quality report generation
 - **Multi-Modal RAG**: NVIDIA RAG Blueprint with NeMo Retriever microservices for document understanding across text, images, tables, and charts
 - **Web Search Integration**: Real-time web search powered by Tavily API to supplement on-premise sources
-- **NVIDIA NIM Microservices**: Production-ready inference containers for LLMs and vision models
+- **NVIDIA NIM Microservices**: Optimized inference containers for LLMs and vision models
 
 ### Key Components
 
@@ -47,7 +47,7 @@ Per the [official architecture](https://github.com/NVIDIA-AI-Blueprints/aiq-rese
 - PaddleOCR for text recognition
 
 **4. NVIDIA NIM Microservices**
-- Foundational LLMs for report writing and reasoning
+- Inference containers for LLMs and vision models
 - [Llama-3.3-Nemotron-Super-49B-v1.5](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) reasoning model
 - Llama-3.3-70B-Instruct model for report generation
 
@@ -65,9 +65,8 @@ This blueprint implements the **[NVIDIA AI-Q Research Assistant](https://github.
 While this implementation involves multiple steps, it provides several advantages:
 
 - **Complete Infrastructure**: Automatically provisions VPC, EKS cluster, OpenSearch Serverless, and monitoring stack
-- **Production Ready**: Includes enterprise-grade security, monitoring, and scalability features
+- **Enterprise Features**: Includes security, monitoring, and scalability features
 - **AWS Integration**: Leverages Karpenter autoscaling, IRSA authentication, and managed AWS services
-- **Cost Optimized**: Dynamic provisioning ensures you only pay for resources when needed
 - **Reproducible**: Infrastructure as Code ensures consistent deployments across environments
 
 ### Key Features
@@ -76,7 +75,6 @@ While this implementation involves multiple steps, it provides several advantage
 - **Karpenter Autoscaling**: Dynamic GPU node provisioning based on workload demands
 - **Intelligent Instance Selection**: Automatically chooses optimal GPU instance types (G5, P4, P5)
 - **Bin-Packing**: Efficient GPU utilization across multiple workloads
-- **Mixed Capacity**: Combine on-demand and spot instances for cost savings
 
 **Enterprise Ready:**
 - **OpenSearch Serverless**: Managed vector database with automatic scaling
@@ -199,9 +197,9 @@ Ensure your AWS account has access to GPU instances. This blueprint supports mul
 
 | Instance Family | GPU Type | Performance Profile | Use Case |
 |----------------|----------|---------------------|----------|
-| **G5** (default) | NVIDIA A10G | Cost-effective, 24GB VRAM | Production workloads, development |
+| **G5** (default) | NVIDIA A10G | Cost-effective, 24GB VRAM | General workloads, development |
 | **G6e** | NVIDIA L40S | Balanced, 48GB VRAM | High-memory models |
-| **P4d/P4de** | NVIDIA A100 | High-performance, 40/80GB VRAM | Large-scale production |
+| **P4d/P4de** | NVIDIA A100 | High-performance, 40/80GB VRAM | Large-scale deployments |
 | **P5/P5e/P5en** | NVIDIA H100 | Ultra-high performance, 80GB VRAM | Maximum performance |
 
 **Instance Sizing:**
@@ -313,8 +311,8 @@ Clone the RAG source code and add OpenSearch implementation:
 git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
 
 # Download OpenSearch implementation from NVIDIA nim-deploy repository
-COMMIT_HASH="INSERT_COMMIT_HASH_HERE"
-curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=4 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
+COMMIT_HASH="fe6ec2e5c53b6134d1743fc975e5eef56e660b04"
+curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=5 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
 ```
 
 Integrate OpenSearch support into RAG source:
@@ -508,7 +506,27 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 }'
 ```
 
-### Step 12: Access Services
+### Step 12: Data Ingestion from S3
+
+Ingest documents from an S3 bucket into the OpenSearch vector database:
+
+```bash
+# Set required environment variables
+export S3_BUCKET_NAME="your-pdf-bucket-name"  # Replace with your S3 bucket
+export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+# Optional: Configure additional settings
+export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
+export RAG_COLLECTION_NAME="multimodal_data"
+export UPLOAD_BATCH_SIZE="100"
+
+# Run the data ingestion script
+./data_ingestion.sh
+```
+
+> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
+
+### Step 13: Access Services
 
 ```bash
 # Get AI-Q frontend URL
@@ -686,39 +704,6 @@ helm upgrade aira helm/aiq-aira -n nv-aira \
 
 Karpenter will automatically provision the new instance type. No infrastructure changes required!
 
-### Cost Optimization
-
-**Enable Spot Instances for 1-GPU workloads:**
-
-```yaml
-nodeSelector:
-  karpenter.sh/capacity-type: spot  # 70% cost savings
-```
-
-**Karpenter Consolidation:**
-
-Karpenter automatically consolidates underutilized nodes after 5 minutes of inactivity, reducing costs by 30-50%.
-
-### Data Ingestion from S3
-
-Ingest documents from an S3 bucket into the OpenSearch vector database:
-
-```bash
-# Set required environment variables
-export S3_BUCKET_NAME="your-pdf-bucket-name"  # Replace with your S3 bucket
-export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-
-# Optional: Configure additional settings
-export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
-export RAG_COLLECTION_NAME="multimodal_data"
-export UPLOAD_BATCH_SIZE="100"
-
-# Run the data ingestion script
-./data_ingestion.sh
-```
-
-> **Note**: For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
-
 ## GPU Instance Support
 
 ### Available Karpenter NodePools
@@ -740,7 +725,7 @@ The infrastructure automatically provisions Karpenter NodePools for multiple GPU
 **Performance Tiers:**
 - **G5 (A10G)**: Default configuration, cost-effective, suitable for most workloads
 - **G6e (L40S)**: Higher memory (48GB), better for memory-intensive models
-- **P4 (A100)**: 2-3x performance over A10G, recommended for production at scale
+- **P4 (A100)**: 2-3x performance over A10G, recommended for large-scale deployments
 - **P5 (H100)**: 4-6x performance over A10G, maximum throughput for demanding workloads
 
 **Selection Method:**
@@ -826,13 +811,12 @@ terraform destroy -var-file=../blueprint.tfvars
 2. **Scale Deployments**: Configure multi-region or multi-cluster setups
 3. **Integrate Applications**: Connect your applications to the RAG API endpoints
 4. **Monitor Performance**: Use Grafana dashboards for ongoing monitoring
-5. **Optimize Costs**: Implement auto-scaling and spot instance strategies
-6. **Custom Models**: Swap in your own fine-tuned models
-7. **Production Hardening**: Add authentication, rate limiting, and disaster recovery
+5. **Custom Models**: Swap in your own fine-tuned models
+6. **Security Hardening**: Add authentication, rate limiting, and disaster recovery
 
 ---
 
-This deployment provides a production-ready [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) environment on Amazon EKS with enterprise-grade features including Karpenter automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
+This deployment provides an [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) environment on Amazon EKS with enterprise-grade features including Karpenter automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
 
 **Additional Resources:**
 - [AI-Q on NVIDIA AI Foundation](https://build.nvidia.com/nvidia/aiq): Try the hosted version
