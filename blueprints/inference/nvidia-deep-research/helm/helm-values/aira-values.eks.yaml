@@ -22,6 +22,21 @@ frontend:
     port: 3001
     targetPort: 3001
 
+# Enables the Phoenix tracing service
+phoenix:
+  enabled: true
+  image:
+    repository: arizephoenix/phoenix
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
 nim-llm:
   enabled: true  # Deploy model for AIRA report generation
   image:
@@ -46,7 +61,9 @@ nim-llm:
 
 config:
   instruct_model_name: "meta/llama-3.3-70b-instruct" #"meta/llama-3.1-8b-instruct"
-  instruct_base_url: "http://nim-llm.nv-aira.svc.cluster.local:8000/v1"  
+  instruct_base_url: "http://nim-llm.nv-aira.svc.cluster.local:8000/v1"
+  # instruct_model_name: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+  # instruct_base_url: "http://nim-llm.nv-nvidia-blueprint-rag.svc.cluster.local:8000/v1" 
   nemotron_model_name: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
   nemotron_base_url: "http://nim-llm.nv-nvidia-blueprint-rag.svc.cluster.local:8000/v1"
   # RAG server integration for chat functionality  

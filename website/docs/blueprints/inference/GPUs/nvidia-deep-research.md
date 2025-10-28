@@ -264,30 +264,38 @@ Expected NodePools:
 - `p4-gpu-karpenter` - For P4d/P4de GPU instances (A100)
 - `p5-gpu-karpenter` - For P5/P5e/P5en GPU instances (H100)
 
-### Step 4: Get Infrastructure Outputs
+### Step 4: Configure Karpenter NodePool Limits
+
+Increase the memory limit for the GPU NodePool to accommodate multiple large models:
 
 ```bash
-cd terraform/_LOCAL
-terraform output
+kubectl patch nodepool g5-gpu-karpenter --type='json' -p='[{"op": "replace", "path": "/spec/limits/memory", "value": "2000Gi"}]'
 ```
 
-Save these values for the next steps:
-- `opensearch_collection_endpoint`
-- AWS Account ID and Region
+This command increases the g5-gpu-karpenter NodePool's memory limit from 1000Gi to 2000Gi, allowing Karpenter to provision sufficient GPU nodes for all the models being deployed.
 
 ### Step 5: Set Environment Variables
 
 ```bash
+# Navigate to terraform directory
+cd terraform/_LOCAL
+
+# Get OpenSearch endpoint from Terraform output
+export OPENSEARCH_ENDPOINT=$(terraform output -raw opensearch_collection_endpoint)
+
+# Navigate to blueprint directory
 cd ../../../../blueprints/inference/nvidia-deep-research
 
-# Get AWS Account ID
+# Get AWS Account ID and Region
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export REGION="us-west-2"
 
-# OpenSearch Configuration (from Terraform output)
+# OpenSearch Configuration
 export OPENSEARCH_SERVICE_ACCOUNT="opensearch-access-sa"
 export OPENSEARCH_NAMESPACE="nv-nvidia-blueprint-rag"
-export OPENSEARCH_ENDPOINT="<from-terraform-output>" # From the terraform output
+
+# Verify OpenSearch endpoint was captured
+echo "OpenSearch Endpoint: $OPENSEARCH_ENDPOINT"
 
 # NGC API Key
 export NGC_API_KEY="<your-ngc-api-key>"
@@ -520,6 +528,79 @@ echo "Ingestor API: http://$(kubectl get svc ingestor-server -n nv-nvidia-bluepr
 - **Ingestor API** (optional): Upload documents for processing
 
 </CollapsibleContent>
+
+## Observability
+
+### Expose Monitoring Services
+
+Expose observability services via AWS Network Load Balancers for external access:
+
+**RAG Observability (Zipkin & Grafana):**
+
+```bash
+# Expose Zipkin for distributed tracing
+kubectl patch svc rag-zipkin -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+
+# Expose Grafana for metrics and dashboards
+kubectl patch svc rag-grafana -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
+
+**AI-Q Observability (Phoenix):**
+
+```bash
+# Expose Phoenix for AI-Q tracing
+kubectl patch svc aira-phoenix -n nv-aira -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
+
+**Access Monitoring UIs:**
+
+```bash
+# Get Zipkin URL for RAG tracing
+echo "Zipkin UI: http://$(kubectl get svc rag-zipkin -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):9411"
+
+# Get Grafana URL for RAG metrics
+echo "Grafana UI: http://$(kubectl get svc rag-grafana -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):80"
+
+# Get Phoenix URL for AI-Q tracing
+echo "Phoenix UI: http://$(kubectl get svc aira-phoenix -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):6006"
+```
+
+> **Note**: For detailed information on using these observability tools, refer to:
+> - [Viewing Traces in Zipkin](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-traces-in-zipkin)
+> - [Viewing Metrics in Grafana Dashboard](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-metrics-in-grafana)
 
 ## Test and Validate
 

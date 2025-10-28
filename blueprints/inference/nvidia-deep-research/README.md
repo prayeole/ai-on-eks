@@ -26,19 +26,20 @@ Before proceeding with application deployment, ensure the following infrastructu
 - [Step 1: Configure kubectl](#step-1-configure-kubectl)
 - [Step 2: Set Environment Variables](#step-2-set-environment-variables)
 - [Step 3: Verify Cluster is Ready](#step-3-verify-cluster-is-ready)
+- [Step 4: Configure Karpenter NodePool Limits](#step-4-configure-karpenter-nodepool-limits)
 - [NVIDIA RAG Blueprint Deployment](#nvidia-rag-blueprint-deployment)
-  - [Step 4: Integrate OpenSearch Files](#step-4-integrate-opensearch-files)
-  - [Step 5: Build OpenSearch-Enabled Docker Images](#step-5-build-opensearch-enabled-docker-images)
-  - [Step 6: Deploy RAG Blueprint with OpenSearch](#step-6-deploy-rag-blueprint-with-opensearch)
-  - [Step 7: Configure Load Balancers](#step-7-configure-load-balancers)
-  - [Step 8: Verify RAG Deployment](#step-8-verify-rag-deployment)
+  - [Step 5: Integrate OpenSearch Files](#step-5-integrate-opensearch-files)
+  - [Step 6: Build OpenSearch-Enabled Docker Images](#step-6-build-opensearch-enabled-docker-images)
+  - [Step 7: Deploy RAG Blueprint with OpenSearch](#step-7-deploy-rag-blueprint-with-opensearch)
+  - [Step 8: Configure Load Balancers](#step-8-configure-load-balancers)
+  - [Step 9: Verify RAG Deployment](#step-9-verify-rag-deployment)
 - [Data Ingestion from S3](#data-ingestion-from-s3)
 - [AI-Q Components Deployment](#ai-q-components-deployment)
-  - [Step 9: Setup Helm Repositories](#step-9-setup-helm-repositories)
-  - [Step 10: Deploy AIRA Components](#step-10-deploy-aira-components)
-  - [Step 11: Configure AIRA Load Balancer](#step-11-configure-aira-load-balancer)
-  - [Step 12: Verify AIRA Deployment](#step-12-verify-aira-deployment)
-  - [Step 13: Access Services](#step-13-access-services)
+  - [Step 10: Setup Helm Repositories](#step-10-setup-helm-repositories)
+  - [Step 11: Deploy AIRA Components](#step-11-deploy-aira-components)
+  - [Step 12: Configure AIRA Load Balancer](#step-12-configure-aira-load-balancer)
+  - [Step 13: Verify AIRA Deployment](#step-13-verify-aira-deployment)
+  - [Step 14: Access Services](#step-14-access-services)
 - [Optional: Access RAG Frontend](#optional-access-rag-frontend)
 - [Cleanup](#cleanup)
 - [Additional Resources](#additional-resources)
@@ -124,9 +125,19 @@ kubectl get nodepools
 
 > **Note**: GPU nodes will be automatically provisioned by Karpenter when you deploy GPU workloads. You don't need to pre-create static GPU node groups.
 
+## Step 4: Configure Karpenter NodePool Limits
+
+Increase the memory limit for the G5 GPU NodePool to accommodate multiple large models:
+
+```bash
+kubectl patch nodepool g5-gpu-karpenter --type='json' -p='[{"op": "replace", "path": "/spec/limits/memory", "value": "2000Gi"}]'
+```
+
+This command increases the g5-gpu-karpenter NodePool's memory limit from 1000Gi to 2000Gi, allowing Karpenter to provision sufficient GPU nodes for all the models being deployed.
+
 ## NVIDIA RAG Blueprint Deployment
 
-### Step 4: Integrate OpenSearch Files
+### Step 5: Integrate OpenSearch Files
 
 Clone the RAG source code and integrate OpenSearch support:
 
@@ -145,7 +156,7 @@ cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
 cp opensearch/pyproject.toml rag/pyproject.toml
 ```
 
-### Step 5: Build OpenSearch-Enabled Docker Images
+### Step 6: Build OpenSearch-Enabled Docker Images
 
 Build custom Docker images with OpenSearch support and push to ECR:
 
@@ -165,7 +176,7 @@ This script will:
 - Tag images with version `2.3.0-opensearch`
 - Push to your ECR registry
 
-### Step 6: Deploy RAG Blueprint with OpenSearch
+### Step 7: Deploy RAG Blueprint with OpenSearch
 
 Deploy the RAG Blueprint using the OpenSearch-enabled images and IRSA service account:
 
@@ -208,7 +219,7 @@ This deploys:
 - **RAG Server** with OpenSearch Serverless integration
 - **Frontend** for user interaction
 
-### Step 7: Configure Load Balancers
+### Step 8: Configure Load Balancers
 
 Expose RAG services via AWS Network Load Balancers:
 
@@ -242,7 +253,7 @@ kubectl patch svc ingestor-server -n nv-nvidia-blueprint-rag -p '{
 }'
 ```
 
-### Step 8: Verify RAG Deployment
+### Step 9: Verify RAG Deployment
 
 Check that all RAG components are running:
 
@@ -283,7 +294,7 @@ export UPLOAD_BATCH_SIZE="100"
 
 ## AI-Q Components Deployment
 
-### Step 9: Setup Helm Repositories
+### Step 10: Setup Helm Repositories
 
 Add required Helm repositories for AIRA deployment:
 
@@ -317,7 +328,7 @@ helm repo update
 helm dependency update helm/aiq-aira
 ```
 
-### Step 10: Deploy AIRA Components
+### Step 11: Deploy AIRA Components
 
 Deploy the AI-Q Research Assistant:
 
@@ -344,7 +355,7 @@ This deploys:
 
 Karpenter will provision an additional g5.48xlarge instance for the AI-Q 70B model.
 
-### Step 11: Configure AIRA Load Balancer
+### Step 12: Configure AIRA Load Balancer
 
 Expose AIRA frontend via AWS Network Load Balancer:
 
@@ -364,7 +375,7 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 }'
 ```
 
-### Step 12: Verify AIRA Deployment
+### Step 13: Verify AIRA Deployment
 
 Check that all AIRA components are running:
 
@@ -379,7 +390,7 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=300s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 13: Access Services
+### Step 14: Access Services
 
 Get the Frontend URL:
 
@@ -411,6 +422,79 @@ echo "Ingestor API: http://$INGESTOR_URL:8082"
 Open your browser and navigate to:
 - **RAG Frontend**: `http://<RAG_FRONTEND_URL>:3000`
 - **Ingestor API Docs**: `http://<INGESTOR_URL>:8082/docs`
+
+## Observability
+
+### Expose Monitoring Services
+
+Expose observability services via AWS Network Load Balancers for external access:
+
+**RAG Observability (Zipkin & Grafana):**
+
+```bash
+# Expose Zipkin for distributed tracing
+kubectl patch svc rag-zipkin -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+
+# Expose Grafana for metrics and dashboards
+kubectl patch svc rag-grafana -n nv-nvidia-blueprint-rag -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
+
+**AI-Q Observability (Phoenix):**
+
+```bash
+# Expose Phoenix for AI-Q tracing
+kubectl patch svc aira-phoenix -n nv-aira -p '{
+  "spec": {
+    "type": "LoadBalancer"
+  },
+  "metadata": {
+    "annotations": {
+      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
+    }
+  }
+}'
+```
+
+**Access Monitoring UIs:**
+
+```bash
+# Get Zipkin URL for RAG tracing
+echo "Zipkin UI: http://$(kubectl get svc rag-zipkin -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):9411"
+
+# Get Grafana URL for RAG metrics
+echo "Grafana UI: http://$(kubectl get svc rag-grafana -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):80"
+
+# Get Phoenix URL for AI-Q tracing
+echo "Phoenix UI: http://$(kubectl get svc aira-phoenix -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):6006"
+```
+
+> **Note**: For detailed information on using these observability tools, refer to:
+> - [Viewing Traces in Zipkin](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-traces-in-zipkin)
+> - [Viewing Metrics in Grafana Dashboard](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-metrics-in-grafana)
 
 ## Cleanup
 
