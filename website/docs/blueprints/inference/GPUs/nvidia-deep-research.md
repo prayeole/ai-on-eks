@@ -304,30 +304,34 @@ export NGC_API_KEY="<your-ngc-api-key>"
 export TAVILY_API_KEY="<your-tavily-api-key>"
 ```
 
-### Step 6: Integrate OpenSearch Files
+### Step 6: Integrate OpenSearch and Build Docker Images
 
-The RAG blueprint needs OpenSearch integration files:
+Clone the RAG source code and add OpenSearch implementation:
 
 ```bash
-# Clone RAG source code (v2.3.0)
+# Clone RAG source code
 git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
 
-# Copy OpenSearch implementation files
+# Download OpenSearch implementation from NVIDIA nim-deploy repository
+COMMIT_HASH="INSERT_COMMIT_HASH_HERE"
+curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=4 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
+```
+
+Integrate OpenSearch support into RAG source:
+
+```bash
+# Copy OpenSearch implementation into RAG source
 cp -r opensearch/vdb/opensearch rag/src/nvidia_rag/utils/vdb/
 cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py 
 cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
 cp opensearch/pyproject.toml rag/pyproject.toml
 ```
 
-### Step 7: Build OpenSearch-Enabled Docker Images
-
-Build custom Docker images with OpenSearch support and push to ECR:
+Build and push OpenSearch-enabled Docker images to ECR:
 
 ```bash
 # Login to NGC registry
-docker login nvcr.io
-# username: $oauthtoken
-# password: <your NGC API key>
+docker login nvcr.io  # username: $oauthtoken, password: NGC API Key
 
 # Login to ECR
 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
@@ -336,12 +340,9 @@ aws ecr get-login-password --region ${REGION} | docker login --username AWS --pa
 ./opensearch/build-opensearch-images.sh
 ```
 
-This script will:
-- Build Docker images with OpenSearch integration
-- Tag images with version `2.3.0-opensearch`
-- Push to your ECR registry in the specified region
+This script will build Docker images with OpenSearch integration, tag them with version `2.3.0-opensearch`, and push to your ECR registry
 
-### Step 8: Deploy RAG Blueprint with OpenSearch
+### Step 7: Deploy RAG Blueprint with OpenSearch
 
 Deploy the RAG Blueprint using OpenSearch-enabled images:
 
@@ -368,7 +369,7 @@ helm upgrade --install rag -n nv-nvidia-blueprint-rag \
   --set envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
   --set ingestor-server.envVars.APP_VECTORSTORE_URL="${OPENSEARCH_ENDPOINT}" \
   --set ingestor-server.envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
-  -f helm/helm-values/rag-values-os.yaml
+  -f helm/rag-values-os.yaml
 
 # Patch ingestor-server to use IRSA service account
 kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
@@ -389,7 +390,7 @@ kubectl get pod -n nv-nvidia-blueprint-rag -l app.kubernetes.io/component=rag-se
 kubectl get pod -n nv-nvidia-blueprint-rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}'
 ```
 
-### Step 9: Configure RAG Load Balancers
+### Step 8: Configure RAG Load Balancers
 
 Expose RAG services via AWS Network Load Balancers:
 
@@ -423,7 +424,7 @@ kubectl patch svc ingestor-server -n nv-nvidia-blueprint-rag -p '{
 }'
 ```
 
-### Step 10: Setup Helm Repositories for AI-Q
+### Step 9: Setup Helm Repositories for AI-Q
 
 Add required Helm repositories:
 
@@ -451,7 +452,7 @@ helm repo update
 helm dependency update helm/aiq-aira
 ```
 
-### Step 11: Deploy AI-Q Research Assistant
+### Step 10: Deploy AI-Q Research Assistant
 
 ```bash
 # Verify TAVILY_API_KEY is set
@@ -460,7 +461,7 @@ echo "Tavily API Key: ${TAVILY_API_KEY:0:10}..."
 # Deploy AI-Q using local Helm chart
 helm upgrade --install aira helm/aiq-aira \
   -n nv-aira --create-namespace \
-  -f helm/helm-values/aira-values.eks.yaml \
+  -f helm/aira-values.eks.yaml \
   --set imagePullSecret.password="$NGC_API_KEY" \
   --set ngcApiSecret.password="$NGC_API_KEY" \
   --set config.tavily_api_key="$TAVILY_API_KEY"
@@ -487,7 +488,7 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=600s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 12: Configure AI-Q Load Balancer
+### Step 11: Configure AI-Q Load Balancer
 
 Expose AI-Q frontend via AWS Network Load Balancer:
 
@@ -507,7 +508,7 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 }'
 ```
 
-### Step 13: Access Services
+### Step 12: Access Services
 
 ```bash
 # Get AI-Q frontend URL
@@ -643,7 +644,7 @@ The blueprint is pre-configured with G5 instances, but you can easily switch to 
 
 **Step 1: Edit Helm Values**
 
-For RAG components, edit `helm/helm-values/rag-values-os.yaml`:
+For RAG components, edit `helm/rag-values-os.yaml`:
 
 ```yaml
 # Example: Switch 49B model from G5 to P5 (H100)
@@ -654,7 +655,7 @@ nim-llm:
     karpenter.sh/capacity-type: on-demand
 ```
 
-For AI-Q components, edit `helm/helm-values/aira-values.eks.yaml`:
+For AI-Q components, edit `helm/aira-values.eks.yaml`:
 
 ```yaml
 # Example: Switch 70B model to P4 (A100)
@@ -673,13 +674,13 @@ After updating the Helm values, simply re-run the `helm upgrade` command:
 # Redeploy RAG with new instance type
 helm upgrade rag -n nv-nvidia-blueprint-rag \
   https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \
-  -f helm/helm-values/rag-values-os.yaml \
+  -f helm/rag-values-os.yaml \
   --username '$oauthtoken' --password "${NGC_API_KEY}" \
   # ... (other --set flags)
 
 # Redeploy AI-Q with new instance type
 helm upgrade aira helm/aiq-aira -n nv-aira \
-  -f helm/helm-values/aira-values.eks.yaml \
+  -f helm/aira-values.eks.yaml \
   # ... (other --set flags)
 ```
 

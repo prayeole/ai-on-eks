@@ -28,18 +28,17 @@ Before proceeding with application deployment, ensure the following infrastructu
 - [Step 3: Verify Cluster is Ready](#step-3-verify-cluster-is-ready)
 - [Step 4: Configure Karpenter NodePool Limits](#step-4-configure-karpenter-nodepool-limits)
 - [NVIDIA RAG Blueprint Deployment](#nvidia-rag-blueprint-deployment)
-  - [Step 5: Integrate OpenSearch Files](#step-5-integrate-opensearch-files)
-  - [Step 6: Build OpenSearch-Enabled Docker Images](#step-6-build-opensearch-enabled-docker-images)
-  - [Step 7: Deploy RAG Blueprint with OpenSearch](#step-7-deploy-rag-blueprint-with-opensearch)
-  - [Step 8: Configure Load Balancers](#step-8-configure-load-balancers)
-  - [Step 9: Verify RAG Deployment](#step-9-verify-rag-deployment)
+  - [Step 5: Integrate OpenSearch and Build Docker Images](#step-5-integrate-opensearch-and-build-docker-images)
+  - [Step 6: Deploy RAG Blueprint with OpenSearch](#step-6-deploy-rag-blueprint-with-opensearch)
+  - [Step 7: Configure Load Balancers](#step-7-configure-load-balancers)
+  - [Step 8: Verify RAG Deployment](#step-8-verify-rag-deployment)
 - [Data Ingestion from S3](#data-ingestion-from-s3)
 - [AI-Q Components Deployment](#ai-q-components-deployment)
-  - [Step 10: Setup Helm Repositories](#step-10-setup-helm-repositories)
-  - [Step 11: Deploy AIRA Components](#step-11-deploy-aira-components)
-  - [Step 12: Configure AIRA Load Balancer](#step-12-configure-aira-load-balancer)
-  - [Step 13: Verify AIRA Deployment](#step-13-verify-aira-deployment)
-  - [Step 14: Access Services](#step-14-access-services)
+  - [Step 9: Setup Helm Repositories](#step-9-setup-helm-repositories)
+  - [Step 10: Deploy AIRA Components](#step-10-deploy-aira-components)
+  - [Step 11: Configure AIRA Load Balancer](#step-11-configure-aira-load-balancer)
+  - [Step 12: Verify AIRA Deployment](#step-12-verify-aira-deployment)
+  - [Step 13: Access Services](#step-13-access-services)
 - [Optional: Access RAG Frontend](#optional-access-rag-frontend)
 - [Cleanup](#cleanup)
 - [Additional Resources](#additional-resources)
@@ -137,28 +136,30 @@ This command increases the g5-gpu-karpenter NodePool's memory limit from 1000Gi 
 
 ## NVIDIA RAG Blueprint Deployment
 
-### Step 5: Integrate OpenSearch Files
+### Step 5: Integrate OpenSearch and Build Docker Images
 
-Clone the RAG source code and integrate OpenSearch support:
+Clone the RAG source code and add OpenSearch implementation:
 
 ```bash
 # Clone RAG source code
 git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
 
-# Copy OpenSearch VDB implementation into RAG source
+# Download example OpenSearch implementation from NVIDIA repository
+COMMIT_HASH="INSERT_COMMIT_HASH_HERE"
+curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=4 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
+```
+
+Integrate OpenSearch support into RAG source:
+
+```bash
+# Copy OpenSearch implementation into RAG source
 cp -r opensearch/vdb/opensearch rag/src/nvidia_rag/utils/vdb/
-
-# Update Ingestion Server
 cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py 
-
-# Update VDB factory and dependencies
 cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
 cp opensearch/pyproject.toml rag/pyproject.toml
 ```
 
-### Step 6: Build OpenSearch-Enabled Docker Images
-
-Build custom Docker images with OpenSearch support and push to ECR:
+Build and push OpenSearch-enabled Docker images to ECR:
 
 ```bash
 # Login to NGC registry
@@ -171,16 +172,13 @@ aws ecr get-login-password --region ${REGION} | docker login --username AWS --pa
 ./opensearch/build-opensearch-images.sh
 ```
 
-This script will:
-- Build Docker images with OpenSearch integration
-- Tag images with version `2.3.0-opensearch`
-- Push to your ECR registry
+This script will build Docker images with OpenSearch integration, tag them with version `2.3.0-opensearch`, and push to your ECR registry
 
-### Step 7: Deploy RAG Blueprint with OpenSearch
+### Step 6: Deploy RAG Blueprint with OpenSearch
 
 Deploy the RAG Blueprint using the OpenSearch-enabled images and IRSA service account:
 
-> **Note**: The `helm/helm-values/rag-values-os.yaml` file is pre-configured with Karpenter labels for automatic g5 instance provisioning. No manual node selection required.
+> **Note**: The `helm/rag-values-os.yaml` file is pre-configured with Karpenter labels for automatic g5 instance provisioning. No manual node selection required.
 
 ```bash
 # Set deployment variables
@@ -205,7 +203,7 @@ helm upgrade --install rag -n nv-nvidia-blueprint-rag \
   --set envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
   --set ingestor-server.envVars.APP_VECTORSTORE_URL="${OPENSEARCH_ENDPOINT}" \
   --set ingestor-server.envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
-  -f helm/helm-values/rag-values-os.yaml
+  -f helm/rag-values-os.yaml
 
 # Patch ingestor-server deployment to use IRSA service account
 kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
@@ -219,7 +217,7 @@ This deploys:
 - **RAG Server** with OpenSearch Serverless integration
 - **Frontend** for user interaction
 
-### Step 8: Configure Load Balancers
+### Step 7: Configure Load Balancers
 
 Expose RAG services via AWS Network Load Balancers:
 
@@ -253,7 +251,7 @@ kubectl patch svc ingestor-server -n nv-nvidia-blueprint-rag -p '{
 }'
 ```
 
-### Step 9: Verify RAG Deployment
+### Step 8: Verify RAG Deployment
 
 Check that all RAG components are running:
 
@@ -294,7 +292,7 @@ export UPLOAD_BATCH_SIZE="100"
 
 ## AI-Q Components Deployment
 
-### Step 10: Setup Helm Repositories
+### Step 9: Setup Helm Repositories
 
 Add required Helm repositories for AIRA deployment:
 
@@ -328,11 +326,11 @@ helm repo update
 helm dependency update helm/aiq-aira
 ```
 
-### Step 11: Deploy AIRA Components
+### Step 10: Deploy AIRA Components
 
 Deploy the AI-Q Research Assistant:
 
-> **Note**: The `helm/helm-values/aira-values.eks.yaml` file is pre-configured with Karpenter labels to automatically provision a g5.48xlarge instance for the 70B model (8 GPUs).
+> **Note**: The `helm/aira-values.eks.yaml` file is pre-configured with Karpenter labels to automatically provision a g5.48xlarge instance for the 70B model (8 GPUs).
 
 ```bash
 # Verify TAVILY_API_KEY is set
@@ -341,7 +339,7 @@ echo "Tavily API Key: ${TAVILY_API_KEY:0:10}..."
 # Deploy AIRA using local Helm chart
 helm upgrade --install aira helm/aiq-aira \
   -n nv-aira --create-namespace \
-  -f helm/helm-values/aira-values.eks.yaml \
+  -f helm/aira-values.eks.yaml \
   --set imagePullSecret.password="$NGC_API_KEY" \
   --set ngcApiSecret.password="$NGC_API_KEY" \
   --set config.tavily_api_key="$TAVILY_API_KEY"
@@ -355,7 +353,7 @@ This deploys:
 
 Karpenter will provision an additional g5.48xlarge instance for the AI-Q 70B model.
 
-### Step 12: Configure AIRA Load Balancer
+### Step 11: Configure AIRA Load Balancer
 
 Expose AIRA frontend via AWS Network Load Balancer:
 
@@ -375,7 +373,7 @@ kubectl patch svc aira-aira-frontend -n nv-aira -p '{
 }'
 ```
 
-### Step 13: Verify AIRA Deployment
+### Step 12: Verify AIRA Deployment
 
 Check that all AIRA components are running:
 
@@ -390,7 +388,7 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=300s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 14: Access Services
+### Step 13: Access Services
 
 Get the Frontend URL:
 
