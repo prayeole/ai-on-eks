@@ -44,7 +44,7 @@ variable "opensearch_allow_public_access" {
 variable "opensearch_namespace" {
   description = "Kubernetes namespace for OpenSearch service account (must match where your application pods run)"
   type        = string
-  default     = "nv-nvidia-blueprint-rag"
+  default     = "rag"
 }
 
 variable "opensearch_service_account_name" {
@@ -133,25 +133,50 @@ resource "aws_opensearchserverless_collection" "this" {
 }
 
 #---------------------------------------------------------------
-# Step 4: IRSA - IAM Role for Service Account
+# Step 4: EKS Pod Identity
 #---------------------------------------------------------------
-module "opensearch_irsa" {
-  count   = var.enable_opensearch_serverless ? 1 : 0
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+# IAM Role for Pod Identity
+resource "aws_iam_role" "opensearch_pod_identity" {
+  count = var.enable_opensearch_serverless ? 1 : 0
 
-  role_name = "${module.eks.cluster_name}-opensearch-sa"
+  name        = "${module.eks.cluster_name}-opensearch-pod-identity"
+  description = "IAM role for OpenSearch access via EKS Pod Identity"
 
-  role_policy_arns = {
-    opensearch = aws_iam_policy.opensearch_serverless[0].arn
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "pods.eks.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
+      }
+    ]
+  })
 
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["${var.opensearch_namespace}:${var.opensearch_service_account_name}"]
-    }
-  }
+  tags = local.tags
+}
+
+# Attach the OpenSearch policy to the role
+resource "aws_iam_role_policy_attachment" "opensearch_pod_identity" {
+  count = var.enable_opensearch_serverless ? 1 : 0
+
+  role       = aws_iam_role.opensearch_pod_identity[0].name
+  policy_arn = aws_iam_policy.opensearch_serverless[0].arn
+}
+
+# Create the Pod Identity Association
+resource "aws_eks_pod_identity_association" "opensearch" {
+  count = var.enable_opensearch_serverless ? 1 : 0
+
+  cluster_name    = module.eks.cluster_name
+  namespace       = var.opensearch_namespace
+  service_account = var.opensearch_service_account_name
+  role_arn        = aws_iam_role.opensearch_pod_identity[0].arn
 
   tags = local.tags
 }
@@ -208,7 +233,7 @@ data "aws_iam_policy_document" "opensearch_serverless" {
 
 #---------------------------------------------------------------
 # Step 6: Data Access Policy
-# This grants the IRSA role permissions to access the collection
+# This grants the Pod Identity role permissions to access the collection
 #---------------------------------------------------------------
 resource "aws_opensearchserverless_access_policy" "data" {
   count = var.enable_opensearch_serverless ? 1 : 0
@@ -244,15 +269,15 @@ resource "aws_opensearchserverless_access_policy" "data" {
         }
       ]
       Principal = [
-        # Grant access to the IRSA role
-        module.opensearch_irsa[0].iam_role_arn
+        # Grant access to the Pod Identity role
+        aws_iam_role.opensearch_pod_identity[0].arn
       ]
     }
   ])
 
   depends_on = [
     aws_opensearchserverless_collection.this,
-    module.opensearch_irsa
+    aws_iam_role.opensearch_pod_identity
   ]
 }
 
@@ -280,9 +305,6 @@ resource "kubernetes_service_account_v1" "opensearch" {
   metadata {
     name      = var.opensearch_service_account_name
     namespace = var.opensearch_namespace
-    annotations = {
-      "eks.amazonaws.com/role-arn" = module.opensearch_irsa[0].iam_role_arn
-    }
   }
 
   automount_service_account_token = true
@@ -325,12 +347,12 @@ output "opensearch_service_account_name" {
 
 output "opensearch_iam_role_arn" {
   description = "ARN of the IAM role for OpenSearch service account"
-  value       = var.enable_opensearch_serverless ? module.opensearch_irsa[0].iam_role_arn : null
+  value       = var.enable_opensearch_serverless ? aws_iam_role.opensearch_pod_identity[0].arn : null
 }
 
 output "opensearch_iam_role_name" {
   description = "Name of the IAM role for OpenSearch service account"
-  value       = var.enable_opensearch_serverless ? module.opensearch_irsa[0].iam_role_name : null
+  value       = var.enable_opensearch_serverless ? aws_iam_role.opensearch_pod_identity[0].name : null
 }
 
 output "opensearch_namespace" {

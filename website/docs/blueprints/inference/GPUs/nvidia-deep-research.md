@@ -66,7 +66,7 @@ While this implementation involves multiple steps, it provides several advantage
 
 - **Complete Infrastructure**: Automatically provisions VPC, EKS cluster, OpenSearch Serverless, and monitoring stack
 - **Enterprise Features**: Includes security, monitoring, and scalability features
-- **AWS Integration**: Leverages Karpenter autoscaling, IRSA authentication, and managed AWS services
+- **AWS Integration**: Leverages Karpenter autoscaling, EKS Pod Identity authentication, and managed AWS services
 - **Reproducible**: Infrastructure as Code ensures consistent deployments across environments
 
 ### Key Features
@@ -78,9 +78,9 @@ While this implementation involves multiple steps, it provides several advantage
 
 **Enterprise Ready:**
 - **OpenSearch Serverless**: Managed vector database with automatic scaling
-- **IRSA Authentication**: IAM Roles for Service Accounts for secure AWS access
+- **Pod Identity Authentication**: EKS Pod Identity for secure AWS IAM access from pods
 - **Observability Stack**: Prometheus, Grafana, and DCGM for GPU monitoring
-- **Load Balancing**: AWS Load Balancer Controller for external access
+- **Secure Access**: Kubernetes port-forwarding for controlled service access
 
 ## Architecture
 
@@ -91,7 +91,7 @@ The deployment uses Amazon EKS with Karpenter-based dynamic provisioning:
 **Infrastructure Components:**
 - **VPC and Networking**: Standard VPC with secondary CIDR for extended pod networking
 - **EKS Cluster**: Managed Kubernetes with Karpenter for GPU autoscaling
-- **OpenSearch Serverless**: Vector database with IRSA integration
+- **OpenSearch Serverless**: Vector database with Pod Identity integration
 - **Monitoring Stack**: Prometheus, Grafana, and NVIDIA DCGM
 - **Storage**: Amazon EFS for shared data and model caching
 
@@ -230,7 +230,7 @@ cd infra/nvidia-deep-research
 This command provisions your complete environment:
 - **VPC**: Subnets, security groups, NAT gateways, and internet gateway
 - **EKS Cluster**: With Karpenter for dynamic GPU provisioning
-- **OpenSearch Serverless**: Vector database with IRSA authentication
+- **OpenSearch Serverless**: Vector database with Pod Identity authentication
 - **Monitoring Stack**: Prometheus, Grafana, and AI/ML observability
 - **Karpenter NodePools**: G5, G6, G6e, P4, P5 instance support
 
@@ -290,7 +290,7 @@ export REGION="us-west-2"
 
 # OpenSearch Configuration
 export OPENSEARCH_SERVICE_ACCOUNT="opensearch-access-sa"
-export OPENSEARCH_NAMESPACE="nv-nvidia-blueprint-rag"
+export OPENSEARCH_NAMESPACE="rag"
 
 # Verify OpenSearch endpoint was captured
 echo "OpenSearch Endpoint: $OPENSEARCH_ENDPOINT"
@@ -311,7 +311,7 @@ Clone the RAG source code and add OpenSearch implementation:
 git clone -b v2.3.0 https://github.com/NVIDIA-AI-Blueprints/rag.git rag
 
 # Download OpenSearch implementation from NVIDIA nim-deploy repository
-COMMIT_HASH="fe6ec2e5c53b6134d1743fc975e5eef56e660b04"
+COMMIT_HASH="47cd8b345e5049d49d8beb406372de84bd005abe"
 curl -L https://github.com/NVIDIA/nim-deploy/archive/${COMMIT_HASH}.tar.gz | tar xz --strip=5 nim-deploy-${COMMIT_HASH}/cloud-service-providers/aws/blueprints/deep-research-blueprint-eks/opensearch
 ```
 
@@ -350,7 +350,7 @@ export ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 export IMAGE_TAG="2.3.0-opensearch"
 
 # Deploy RAG with OpenSearch configuration
-helm upgrade --install rag -n nv-nvidia-blueprint-rag \
+helm upgrade --install rag -n rag \
   https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
@@ -369,8 +369,8 @@ helm upgrade --install rag -n nv-nvidia-blueprint-rag \
   --set ingestor-server.envVars.APP_VECTORSTORE_AWS_REGION="${REGION}" \
   -f helm/rag-values-os.yaml
 
-# Patch ingestor-server to use IRSA service account
-kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
+# Patch ingestor-server to use OpenSearch service account (with Pod Identity)
+kubectl patch deployment ingestor-server -n rag \
   -p "{\"spec\":{\"template\":{\"spec\":{\"serviceAccountName\":\"$OPENSEARCH_SERVICE_ACCOUNT\"}}}}"
 ```
 
@@ -378,91 +378,47 @@ kubectl patch deployment ingestor-server -n nv-nvidia-blueprint-rag \
 
 ```bash
 # Check all pods in RAG namespace
-kubectl get all -n nv-nvidia-blueprint-rag
+kubectl get all -n rag
 
 # Wait for all pods to be ready (this may take 10-20 minutes for model downloads)
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=rag -n nv-nvidia-blueprint-rag --timeout=1200s
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=rag -n rag --timeout=1200s
 
-# Verify service accounts are using IRSA
-kubectl get pod -n nv-nvidia-blueprint-rag -l app.kubernetes.io/component=rag-server -o jsonpath='{.items[0].spec.serviceAccountName}'
-kubectl get pod -n nv-nvidia-blueprint-rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}'
+# Verify service accounts are configured correctly
+kubectl get pod -n rag -l app.kubernetes.io/component=rag-server -o jsonpath='{.items[0].spec.serviceAccountName}'
+kubectl get pod -n rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}'
 ```
 
-### Step 8: Configure RAG Load Balancers
+### Step 8: Setup Port Forwarding for RAG Services
 
-Expose RAG services via AWS Network Load Balancers:
+To securely access RAG services without exposing them to the internet, use kubectl port-forward:
 
 ```bash
-# Patch frontend service to LoadBalancer
-kubectl patch svc rag-frontend -n nv-nvidia-blueprint-rag -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward RAG frontend (run in a separate terminal)
+kubectl port-forward -n rag svc/rag-frontend 3001:3000
 
-# Patch ingestor-server service to LoadBalancer
-kubectl patch svc ingestor-server -n nv-nvidia-blueprint-rag -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward ingestor server (run in another separate terminal)
+kubectl port-forward -n rag svc/ingestor-server 8082:8082
 ```
 
-### Step 9: Setup Helm Repositories for AI-Q
+> **Note**: These commands will run in the foreground. Open separate terminal windows for each port-forward command, or run them in the background.
 
-Add required Helm repositories:
+> **Alternative**: If you need to expose services publicly, you can create an Ingress resource with appropriate authentication and security controls instead of using port-forward.
 
-```bash
-# Add NGC Helm repositories
-helm repo add nim https://helm.ngc.nvidia.com/nim \
-  --username='$oauthtoken' \
-  --password="${NGC_API_KEY}" \
-  --force-update
-
-helm repo add nvidia-nim https://helm.ngc.nvidia.com/nim/nvidia/ \
-  --username='$oauthtoken' \
-  --password="${NGC_API_KEY}" \
-  --force-update
-
-helm repo add nemo-microservices https://helm.ngc.nvidia.com/nvidia/nemo-microservices \
-  --username='$oauthtoken' \
-  --password="${NGC_API_KEY}" \
-  --force-update
-
-# Update all repositories
-helm repo update
-
-# Update dependencies for the local AI-Q chart
-helm dependency update helm/aiq-aira
-```
-
-### Step 10: Deploy AI-Q Research Assistant
+### Step 9: Deploy AI-Q Research Assistant
 
 ```bash
 # Verify TAVILY_API_KEY is set
 echo "Tavily API Key: ${TAVILY_API_KEY:0:10}..."
 
-# Deploy AI-Q using local Helm chart
-helm upgrade --install aira helm/aiq-aira \
+# Deploy AI-Q using NGC Helm chart
+helm upgrade --install aira https://helm.ngc.nvidia.com/nvidia/blueprint/charts/aiq-aira-v1.2.0.tgz \
+  --username='$oauthtoken' \
+  --password="${NGC_API_KEY}" \
   -n nv-aira --create-namespace \
   -f helm/aira-values.eks.yaml \
   --set imagePullSecret.password="$NGC_API_KEY" \
   --set ngcApiSecret.password="$NGC_API_KEY" \
-  --set config.tavily_api_key="$TAVILY_API_KEY"
+  --set tavilyApiSecret.password="$TAVILY_API_KEY"
 ```
 
 This deploys:
@@ -486,27 +442,20 @@ kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=600s
 kubectl get pods -n nv-aira -o wide
 ```
 
-### Step 11: Configure AI-Q Load Balancer
+### Step 10: Setup Port Forwarding for AIRA Services
 
-Expose AI-Q frontend via AWS Network Load Balancer:
+To securely access the AIRA frontend without exposing it to the internet, use kubectl port-forward:
 
 ```bash
-# Patch AI-Q frontend service to LoadBalancer
-kubectl patch svc aira-aira-frontend -n nv-aira -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward AIRA frontend (run in a separate terminal)
+kubectl port-forward -n nv-aira svc/aira-aira-frontend 3000:3000
 ```
 
-### Step 12: Data Ingestion from S3
+> **Note**: This command will run in the foreground. Open a separate terminal window or run it in the background.
+
+> **Alternative**: If you need to expose the service publicly, you can create an Ingress resource with appropriate authentication and security controls instead of using port-forward.
+
+### Step 11: Data Ingestion from S3
 
 Ingest documents from an S3 bucket into the OpenSearch vector database using the provided batch ingestion script.
 
@@ -523,10 +472,19 @@ The NeMo Retriever microservices will automatically extract text, tables, charts
 
 **Batch Ingestion from S3:**
 
+First, ensure the ingestor server port-forward is running from Step 8:
+
+```bash
+# If not already running, start port-forward in a separate terminal
+kubectl port-forward -n rag svc/ingestor-server 8082:8082
+```
+
+Then run the data ingestion script:
+
 ```bash
 # Set required environment variables
 export S3_BUCKET_NAME="your-pdf-bucket-name"  # Replace with your S3 bucket
-export INGESTOR_URL=$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+export INGESTOR_URL="localhost:8082"  # Using port-forward from Step 8
 
 # Optional: Configure additional settings
 export S3_PREFIX=""  # Optional: folder path (e.g., "documents/")
@@ -537,102 +495,64 @@ export UPLOAD_BATCH_SIZE="100"
 ./data_ingestion.sh
 ```
 
-> **Note**: For testing purposes, you can also upload individual documents directly through the RAG or AIRA frontend UI in the next step. For more details on script options and advanced usage, see the [batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts).
+> **Note**: For testing purposes, you can also upload individual documents directly through the RAG or AIRA frontend UI in the next step. For more details on script options and advanced usage, see:
+> - [RAG batch_ingestion.py documentation](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.3.0/scripts)
+> - [AIQ bulk data ingestion documentation](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant/blob/main/data/readme.md#bulk-upload-via-python)
 
-### Step 13: Access Services
+### Step 12: Access Services
 
-```bash
-# Get AI-Q frontend URL
-echo "AI-Q Frontend: http://$(kubectl get svc aira-aira-frontend -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):3001"
+With port-forwarding enabled from previous steps, access the services locally:
 
-# Get RAG frontend URL (optional)
-echo "RAG Frontend: http://$(kubectl get svc rag-frontend -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):3000"
+**AIRA Research Assistant:**
+- URL: http://localhost:3000
+- Use this to generate comprehensive research reports
 
-# Get Ingestor API URL (for data ingestion)
-echo "Ingestor API: http://$(kubectl get svc ingestor-server -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):8082"
-```
+**RAG Frontend** (optional):
+- URL: http://localhost:3001
+- Use this to test the RAG application directly
 
-> **Note**: The load balancer endpoints may take up to 5 minutes to be provisioned and become accessible after deployment.
+**Ingestor API** (optional):
+- URL: http://localhost:8082
+- API docs available at: http://localhost:8082/docs
 
-**Access the application:**
-- **AI-Q Research Assistant**: Open the AI-Q Frontend URL in your browser to generate comprehensive research reports
-- **RAG Frontend** (optional): Test the RAG application directly
-- **Ingestor API** (optional): Upload documents for processing
+> **Note**: Ensure the corresponding port-forward commands from Steps 8 and 10 are running in separate terminal windows to access these services.
 
 </CollapsibleContent>
 
 ## Observability
 
-### Expose Monitoring Services
+### Access Monitoring Services
 
-Expose observability services via AWS Network Load Balancers for external access:
+To access observability dashboards, use kubectl port-forward:
 
 **RAG Observability (Zipkin & Grafana):**
 
 ```bash
-# Expose Zipkin for distributed tracing
-kubectl patch svc rag-zipkin -n nv-nvidia-blueprint-rag -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward Zipkin for distributed tracing (run in a separate terminal)
+kubectl port-forward -n rag svc/rag-zipkin 9411:9411
 
-# Expose Grafana for metrics and dashboards
-kubectl patch svc rag-grafana -n nv-nvidia-blueprint-rag -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward Grafana for metrics and dashboards (run in another separate terminal)
+kubectl port-forward -n rag svc/rag-grafana 8080:80
 ```
 
 **AI-Q Observability (Phoenix):**
 
 ```bash
-# Expose Phoenix for AI-Q tracing
-kubectl patch svc aira-phoenix -n nv-aira -p '{
-  "spec": {
-    "type": "LoadBalancer"
-  },
-  "metadata": {
-    "annotations": {
-      "service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
-      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing",
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp"
-    }
-  }
-}'
+# Port-forward Phoenix for AI-Q tracing (run in a separate terminal)
+kubectl port-forward -n nv-aira svc/aira-phoenix 6006:6006
 ```
 
 **Access Monitoring UIs:**
 
-```bash
-# Get Zipkin URL for RAG tracing
-echo "Zipkin UI: http://$(kubectl get svc rag-zipkin -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):9411"
-
-# Get Grafana URL for RAG metrics
-echo "Grafana UI: http://$(kubectl get svc rag-grafana -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):80"
-
-# Get Phoenix URL for AI-Q tracing
-echo "Phoenix UI: http://$(kubectl get svc aira-phoenix -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):6006"
-```
+- **Zipkin UI** (RAG tracing): http://localhost:9411
+- **Grafana UI** (RAG metrics): http://localhost:8080
+- **Phoenix UI** (AI-Q tracing): http://localhost:6006
 
 > **Note**: For detailed information on using these observability tools, refer to:
 > - [Viewing Traces in Zipkin](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-traces-in-zipkin)
 > - [Viewing Metrics in Grafana Dashboard](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/docs/observability.md#view-metrics-in-grafana)
+
+> **Alternative**: If you need to expose monitoring services publicly, you can create an Ingress resource with appropriate authentication and security controls.
 
 ## Test and Validate
 
@@ -642,7 +562,7 @@ Check that all components are running:
 
 ```bash
 # Check RAG pods
-kubectl get pods -n nv-nvidia-blueprint-rag
+kubectl get pods -n rag
 
 # Check AIRA pods
 kubectl get pods -n nv-aira
@@ -651,21 +571,10 @@ kubectl get pods -n nv-aira
 kubectl get nodes -l nvidia.com/gpu.present=true
 ```
 
-### Access Frontend
-
-```bash
-# Get the AI-Q frontend URL
-AI_Q_URL=$(kubectl get svc aira-aira-frontend -n nv-aira -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-echo "AI-Q Frontend: http://${AI_Q_URL}:3001"
-
-# Get the RAG frontend URL (optional)
-RAG_URL=$(kubectl get svc rag-frontend -n nv-nvidia-blueprint-rag -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-echo "RAG Frontend: http://${RAG_URL}:3000"
-
-# Open AI-Q in your browser
-open http://${AI_Q_URL}:3001  # macOS
-# xdg-open http://${AI_Q_URL}:3001  # Linux
-```
+> **Access Services**: With port-forwarding from Steps 8 and 10, access the services at:
+> - **AIRA Frontend**: http://localhost:3000
+> - **RAG Frontend**: http://localhost:3001
+> - **Ingestor API**: http://localhost:8082
 
 ## Advanced Configuration
 
@@ -703,14 +612,16 @@ After updating the Helm values, simply re-run the `helm upgrade` command:
 
 ```bash
 # Redeploy RAG with new instance type
-helm upgrade rag -n nv-nvidia-blueprint-rag \
+helm upgrade rag -n rag \
   https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \
   -f helm/rag-values-os.yaml \
   --username '$oauthtoken' --password "${NGC_API_KEY}" \
   # ... (other --set flags)
 
 # Redeploy AI-Q with new instance type
-helm upgrade aira helm/aiq-aira -n nv-aira \
+helm upgrade aira https://helm.ngc.nvidia.com/nvidia/blueprint/charts/aiq-aira-v1.2.0.tgz \
+  --username='$oauthtoken' --password="${NGC_API_KEY}" \
+  -n nv-aira \
   -f helm/aira-values.eks.yaml \
   # ... (other --set flags)
 ```
@@ -760,15 +671,15 @@ nodeSelector:
 ```bash
 # Delete applications
 helm uninstall aira -n nv-aira
-helm uninstall rag -n nv-nvidia-blueprint-rag
+helm uninstall rag -n rag
 
 # Wait for Karpenter to terminate idle nodes (5-10 minutes)
-# Or manually delete GPU nodes (replace instance-family as needed)
+# Or manually delete GPU nodes
 kubectl delete nodes -l nvidia.com/gpu.present=true
 
-# Destroy infrastructure
-cd infra/nvidia-deep-research/terraform/_LOCAL
-terraform destroy -var-file=../blueprint.tfvars
+# Destroy infrastructure using cleanup script
+cd infra/nvidia-deep-research
+./cleanup.sh
 ```
 
 **Duration**: ~10-15 minutes for complete teardown
@@ -802,7 +713,7 @@ terraform destroy -var-file=../blueprint.tfvars
 
 **📖 Documentation:**
 - [Detailed Deployment Guide](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-deep-research/README.md): Step-by-step EKS instructions
-- [OpenSearch Integration](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research/terraform/opensearch-serverless.tf): IRSA authentication setup
+- [OpenSearch Integration](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research/terraform/opensearch-serverless.tf): Pod Identity authentication setup
 - [Karpenter Configuration](https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-deep-research/terraform/custom_karpenter.tf): P4/P5 GPU support
 
 ### Related Technologies
@@ -811,7 +722,7 @@ terraform destroy -var-file=../blueprint.tfvars
 - [Amazon EKS](https://aws.amazon.com/eks/): Managed Kubernetes service
 - [Karpenter](https://karpenter.sh/): Kubernetes node autoscaling
 - [OpenSearch Serverless](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html): Managed vector database
-- [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/): Kubernetes ingress
+- [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html): IAM authentication for pods
 
 **🤖 AI/ML Tools:**
 - [NVIDIA DCGM](https://developer.nvidia.com/dcgm): GPU monitoring

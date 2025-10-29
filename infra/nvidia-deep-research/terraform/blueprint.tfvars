@@ -41,6 +41,6 @@ opensearch_collection_name      = "osv-vector-dev"
 opensearch_collection_type      = "VECTORSEARCH"
 opensearch_policy_name          = "osv-vector-dev-policy"
 opensearch_allow_public_access  = true
-opensearch_namespace            = "nv-nvidia-blueprint-rag" # Namespace where your pods will run
+opensearch_namespace            = "rag" # Namespace where your pods will run
 opensearch_service_account_name = "opensearch-access-sa"
 opensearch_iam_role_name        = "EKSOpenSearchServerlessRole"
