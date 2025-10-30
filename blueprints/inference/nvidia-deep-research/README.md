@@ -17,7 +17,10 @@ Before proceeding with application deployment, ensure the following infrastructu
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) - Kubernetes command-line tool
 - [Helm](https://helm.sh/docs/intro/install/) - Kubernetes package manager
 - [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) - Configured with credentials
-- [NGC API Key](https://org.ngc.nvidia.com/setup/personal-keys) - For accessing NVIDIA container registry
+- **NGC API Key** - For accessing NVIDIA container registry. You must first sign up through one of these options:
+  - **Option 1 (Quick Start):** [NVIDIA Developer Program](https://build.nvidia.com/) - Free account for POCs and development
+  - **Option 2 (Production):** [NVIDIA AI Enterprise](https://aws.amazon.com/marketplace/pp/prodview-ozgjkov6vq3l6) - AWS Marketplace subscription for enterprise support
+  - After signing up, generate your API key at: [NGC Personal Keys](https://org.ngc.nvidia.com/setup/personal-keys)
 - [Tavily API Key](https://tavily.com/) - For AIRA web search capabilities
 
 ## Table of Contents

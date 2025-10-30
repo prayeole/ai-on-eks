@@ -179,11 +179,19 @@ Install the following tools:
 
 ### Required API Tokens
 
-- **[NGC API Token](https://org.ngc.nvidia.com/setup/personal-keys)**: Required for accessing NVIDIA NIM containers and AI Foundation models
-  - Sign up at [NVIDIA NGC](https://org.ngc.nvidia.com/)
-  - Generate an API key from your account settings
-  - Set as `NGC_API_KEY` environment variable
-  - Note: NVIDIA AI Enterprise license required for local hosting of NIM microservices
+- **NGC API Token**: Required for accessing NVIDIA NIM containers and AI Foundation models
+  - **First, sign up through one of these options** (your API key will only work if you have one of these accounts):
+    - **Option 1 - NVIDIA Developer Program** (Quick Start): 
+      - Sign up [here](https://build.nvidia.com/)
+      - Free account for POCs and development workloads
+      - Ideal for testing and evaluation
+    - **Option 2 - NVIDIA AI Enterprise** (Production):
+      - Subscribe via [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-ozgjkov6vq3l6)
+      - Enterprise license with full support and SLAs
+      - Required for production deployments
+  - **Then, generate your API key**:
+    - After signing up through Option 1 or 2, generate your API key at [NGC Personal Keys](https://org.ngc.nvidia.com/setup/personal-keys)
+    - Set as `NGC_API_KEY` environment variable
 - **[Tavily API Key](https://tavily.com/)**: Required for AI-Q web search functionality
   - Create account at [Tavily](https://tavily.com/)
   - Generate API key from dashboard
