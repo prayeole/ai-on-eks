@@ -213,13 +213,6 @@ variable "enable_service_mutator_webhook" {
   default     = false
 }
 
-# Ingress-Nginx Controller
-variable "enable_ingress_nginx" {
-  description = "Enable ingress-nginx addon"
-  type        = bool
-  default     = true
-}
-
 # ArgoCD Addons for ai-on-eks/infra/base/terraform/argocd_addons.tf
 variable "enable_nvidia_nim_stack" {
   description = "Flag to enable the NVIDIA NIM Stack addon"
