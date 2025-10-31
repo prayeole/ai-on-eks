@@ -208,7 +208,7 @@ spec:
     headGroupSpec:
       headService:
         metadata:
-          name: vllm
+          # name: vllm
           namespace: rayserve-vllm
       rayStartParams:
         dashboard-host: '0.0.0.0'

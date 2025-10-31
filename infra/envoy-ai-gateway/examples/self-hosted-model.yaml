@@ -1,0 +1,99 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-ai-gateway-class
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: envoy-ai-gateway
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: envoy-ai-gateway-class
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      # routes:
+      #   kind: HTTPRoute
+      #   selector:
+      #     matchLabels:
+      #       app.kubernetes.io/name: envoy-ai-gateway
+      #   namespaceSelector:
+      #     matchLabels:
+      #       app.kubernetes.io/name: envoy-ai-gateway
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIGatewayRoute
+metadata:
+  name: self-hosted-model-route
+  namespace: envoy-gateway-system
+spec:
+  parentRefs:
+    - name: envoy-ai-gateway
+      kind: Gateway
+      group: gateway.networking.k8s.io
+      namespace: envoy-gateway-system
+  rules:
+    - matches:
+        # - path:
+        #     type: PathPrefix
+        #     value: "/v1/chat/completions"
+        - headers:
+          - type: Exact
+            name: x-ai-eg-model
+            value: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+      backendRefs:
+        - name: self-hosted-model-service-backend
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: self-hosted-model-service-backend
+  namespace: envoy-gateway-system
+spec:
+  schema:
+    name: OpenAI
+    version: v1
+  backendRef:
+    name: self-hosted-model-service
+    kind: Backend
+    namespace: envoy-gateway-system
+    group: gateway.envoyproxy.io
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: self-hosted-model-service
+  namespace: envoy-gateway-system
+spec:
+  endpoints:
+    - fqdn:
+        hostname: vllm-serve-svc.rayserve-vllm.svc.cluster.local
+        port: 8000
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: BackendSecurityPolicy
+metadata:
+  name: self-hosted-model-backend-security-policy
+  namespace: envoy-gateway-system
+spec:
+  targetRefs:
+  - group: aigateway.envoyproxy.io
+    kind: AIServiceBackend
+    name: self-hosted-model-service-backend
+  type: APIKey
+  apiKey:
+    secretRef: 
+      name: self-hosted-model-secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: self-hosted-model-secret
+  namespace: envoy-gateway-system
+type: Opaque
+data: 
+  hf-token: <YOUR_BASE64_ENCODED_HUGGINGFACE_TOKEN>
