@@ -1,17 +1,33 @@
-# NVIDIA AI-Q Research Assistant Blueprint - Application Deployment
+# NVIDIA Enterprise RAG & AI-Q Research Assistant - Application Deployment
 
-This guide covers the application deployment steps for the NVIDIA AI-Q Research Assistant Blueprint on EKS
+This guide covers deployment of the NVIDIA Enterprise RAG Blueprint and AI-Q Research Assistant on Amazon EKS. Choose the deployment option that matches your use case.
+
+## Deployment Options
+
+This blueprint supports two deployment modes based on your use case:
+
+**Option 1: Enterprise RAG Blueprint** (Steps 1-8)
+- Deploy NVIDIA Enterprise RAG Blueprint with multi-modal document processing
+- Includes NeMo Retriever microservices and OpenSearch integration
+- Best for: Building custom RAG applications, document Q&A systems, knowledge bases
+
+**Option 2: Full AI-Q Research Assistant** (Steps 1-13)
+- Includes everything from Option 1 plus AI-Q components
+- Adds automated research report generation with web search capabilities via Tavily API
+- Best for: Comprehensive research tasks, automated report generation, web-augmented research
+
+Both deployments include Karpenter autoscaling and enterprise security features. You can start with Option 1 and add AI-Q components later as your needs evolve.
 
 ## Prerequisites
 
 Before proceeding with application deployment, ensure the following infrastructure is deployed:
 
-✅ **EKS Cluster** - Deployed with GPU node groups  
-✅ **GPU Nodes**  
-✅ **NVIDIA GPU Drivers** - Pre-installed  
-✅ **OpenSearch Serverless** - Collection and Pod Identity service account configured  
-✅ **EBS CSI Driver** - For persistent storage  
-✅ **EKS Pod Identity Agent** - For secure AWS IAM access  
+✅ **EKS Cluster** - Deployed with GPU node groups
+✅ **GPU Nodes**
+✅ **NVIDIA GPU Drivers** - Pre-installed
+✅ **OpenSearch Serverless** - Collection and Pod Identity service account configured
+✅ **EBS CSI Driver** - For persistent storage
+✅ **EKS Pod Identity Agent** - For secure AWS IAM access
 
 **Tools Required:**
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) - Kubernetes command-line tool
@@ -21,7 +37,7 @@ Before proceeding with application deployment, ensure the following infrastructu
   - **Option 1 (Quick Start):** [NVIDIA Developer Program](https://build.nvidia.com/) - Free account for POCs and development
   - **Option 2 (Production):** [NVIDIA AI Enterprise](https://aws.amazon.com/marketplace/pp/prodview-ozgjkov6vq3l6) - AWS Marketplace subscription for enterprise support
   - After signing up, generate your API key at: [NGC Personal Keys](https://org.ngc.nvidia.com/setup/personal-keys)
-- [Tavily API Key](https://tavily.com/) - For AIRA web search capabilities
+- [Tavily API Key](https://tavily.com/) - **Required for Option 2: Full AI-Q deployment (Steps 9-13).** Not needed for Option 1: Enterprise RAG deployment (Steps 1-8)
 
 ## Table of Contents
 
@@ -30,9 +46,9 @@ Before proceeding with application deployment, ensure the following infrastructu
 - [Step 2: Set Environment Variables](#step-2-set-environment-variables)
 - [Step 3: Verify Cluster is Ready](#step-3-verify-cluster-is-ready)
 - [Step 4: Configure Karpenter NodePool Limits](#step-4-configure-karpenter-nodepool-limits)
-- [NVIDIA RAG Blueprint Deployment](#nvidia-rag-blueprint-deployment)
+- [NVIDIA Enterprise RAG Blueprint Deployment](#nvidia-enterprise-rag-blueprint-deployment)
   - [Step 5: Integrate OpenSearch and Build Docker Images](#step-5-integrate-opensearch-and-build-docker-images)
-  - [Step 6: Deploy RAG Blueprint with OpenSearch](#step-6-deploy-rag-blueprint-with-opensearch)
+  - [Step 6: Deploy Enterprise RAG Blueprint with OpenSearch](#step-6-deploy-enterprise-rag-blueprint-with-opensearch)
   - [Step 7: Setup Port Forwarding for RAG Services](#step-7-setup-port-forwarding-for-rag-services)
   - [Step 8: Verify RAG Deployment](#step-8-verify-rag-deployment)
 - [AI-Q Components Deployment](#ai-q-components-deployment)
@@ -117,8 +133,8 @@ echo "OpenSearch Endpoint: $OPENSEARCH_ENDPOINT"
 # NGC API Key (replace with your actual key)
 export NGC_API_KEY="<YOUR_NGC_API_KEY>"
 
-# Tavily API Key for AIRA (replace with your actual key)
-export TAVILY_API_KEY="<YOUR_TAVILY_API_KEY>"
+# Tavily API Key for AI-Q (required for Option 2 - Steps 9-13)
+export TAVILY_API_KEY="<YOUR_TAVILY_API_KEY>"  # Skip if deploying Option 1 only (Steps 1-8)
 ```
 
 ## Step 3: Verify Cluster is Ready
@@ -148,7 +164,7 @@ kubectl patch nodepool g5-gpu-karpenter --type='json' -p='[{"op": "replace", "pa
 
 This command increases the g5-gpu-karpenter NodePool's memory limit from 1000Gi to 2000Gi, allowing Karpenter to provision sufficient GPU nodes for all the models being deployed.
 
-## NVIDIA RAG Blueprint Deployment
+## NVIDIA Enterprise RAG Blueprint Deployment
 
 ### Step 5: Integrate OpenSearch and Build Docker Images
 
@@ -168,7 +184,7 @@ Integrate OpenSearch support into RAG source:
 ```bash
 # Copy OpenSearch implementation into RAG source
 cp -r opensearch/vdb/opensearch rag/src/nvidia_rag/utils/vdb/
-cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py 
+cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py
 cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
 cp opensearch/pyproject.toml rag/pyproject.toml
 ```
@@ -188,9 +204,9 @@ aws ecr get-login-password --region ${REGION} | docker login --username AWS --pa
 
 This script will build Docker images with OpenSearch integration, tag them with version `2.3.0-opensearch`, and push to your ECR registry
 
-### Step 6: Deploy RAG Blueprint with OpenSearch
+### Step 6: Deploy Enterprise RAG Blueprint with OpenSearch
 
-Deploy the RAG Blueprint using the OpenSearch-enabled images and the OpenSearch service account:
+Deploy the Enterprise RAG Blueprint using the OpenSearch-enabled images and the OpenSearch service account:
 
 > **Note**: The `helm/rag-values-os.yaml` file is pre-configured with Karpenter labels for automatic g5 instance provisioning. No manual node selection required.
 
@@ -269,6 +285,8 @@ kubectl get pod -n rag -l app=ingestor-server -o jsonpath='{.items[0].spec.servi
 
 ## AI-Q Components Deployment
 
+> **📝 Deployment Choice**: The following steps deploy AI-Q Research Assistant components. If your use case only requires the Enterprise RAG Blueprint, you can stop after Step 8. If you need automated research report generation with web search capabilities, continue with these steps to deploy the full AI-Q solution on top of the Enterprise RAG foundation.
+
 ### Step 9: Deploy AIRA Components
 
 Deploy the AI-Q Research Assistant:
@@ -298,6 +316,8 @@ This deploys:
 
 Karpenter will provision an additional g5.48xlarge instance for the AI-Q 70B model.
 
+> **⏱️ Deployment Time**: The 70B Instruct LLM can take **up to 20 minutes** to download and deploy. Monitor deployment progress in Step 11.
+
 ### Step 10: Setup Port Forwarding for AIRA Services
 
 To securely access the AIRA frontend, use kubectl port-forward:
@@ -319,8 +339,8 @@ Check that all AIRA components are running:
 # Check all AIRA components
 kubectl get all -n nv-aira
 
-# Wait for all components to be ready
-kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=300s
+# Wait for all components to be ready (70B model download can take up to 20 minutes)
+kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=1200s
 
 # Check pod distribution across g5 nodes
 kubectl get pods -n nv-aira -o wide
@@ -432,7 +452,7 @@ kubectl port-forward -n nv-aira svc/aira-phoenix 6006:6006
 helm uninstall aira -n nv-aira
 kubectl delete namespace nv-aira
 
-# Uninstall RAG Blueprint
+# Uninstall Enterprise RAG Blueprint
 helm uninstall rag -n rag
 kubectl delete namespace rag
 ```
@@ -453,8 +473,12 @@ cd ../../../infra/nvidia-deep-research
 
 ## Additional Resources
 
-- [NVIDIA AI-Q Blueprint GitHub](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
-- [NVIDIA RAG Blueprint Documentation](https://docs.nvidia.com/ai-enterprise/rag/)
+**NVIDIA Blueprints:**
+- [NVIDIA Enterprise RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline)
+- [NVIDIA Enterprise RAG Blueprint Github](https://github.com/NVIDIA-AI-Blueprints/rag)
+- [NVIDIA AI-Q Research Assistant](https://build.nvidia.com/nvidia/aiq)
+- [NVIDIA AI-Q Research Assistant Github](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
+
+**AWS Services:**
 - [OpenSearch Serverless Documentation](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html)
 - [EKS Best Practices Guide](https://aws.github.io/aws-eks-best-practices/)
-

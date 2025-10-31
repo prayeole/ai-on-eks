@@ -1,12 +1,27 @@
 #---------------------------------------------------------------
 # OpenSearch Serverless - Complete Setup
-# 
+#
 # This module creates:
 # 1. OpenSearch Serverless collection (vector search)
 # 2. Encryption, network, and data access policies
 # 3. IRSA-enabled Kubernetes service account for pod access
 #
 #---------------------------------------------------------------
+
+terraform {
+  required_version = ">= 1.3.2"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.95"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.10"
+    }
+  }
+}
 
 #---------------------------------------------------------------
 # Variables
@@ -51,12 +66,6 @@ variable "opensearch_service_account_name" {
   description = "Name of the Kubernetes service account for OpenSearch access"
   type        = string
   default     = "opensearch-access-sa"
-}
-
-variable "opensearch_iam_role_name" {
-  description = "Name of the IAM role for OpenSearch IRSA"
-  type        = string
-  default     = "EKSOpenSearchServerlessRole"
 }
 
 #---------------------------------------------------------------

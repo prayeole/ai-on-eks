@@ -27,7 +27,7 @@ enable_p5_karpenter = true # p5*.{4,48}xlarge (1-8x H100)
 
 # -------------------------------------------------------------------------------------
 # OpenSearch Serverless Configuration
-# 
+#
 # Set enable_opensearch_serverless = true to create everything:
 # 1. OpenSearch Serverless collection (vector search)
 # 2. Encryption, network, and data access policies
@@ -43,4 +43,3 @@ opensearch_policy_name          = "osv-vector-dev-policy"
 opensearch_allow_public_access  = true
 opensearch_namespace            = "rag" # Namespace where your pods will run
 opensearch_service_account_name = "opensearch-access-sa"
-opensearch_iam_role_name        = "EKSOpenSearchServerlessRole"

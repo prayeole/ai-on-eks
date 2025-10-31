@@ -48,7 +48,7 @@ backendEnvVars:
 
 frontendEnvVars:
   HOSTNAME: "0.0.0.0"
-  
+
 nim-llm:
   enabled: true
   service:

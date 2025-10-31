@@ -1,21 +1,21 @@
 ---
-title: NVIDIA AI-Q Research Assistant on Amazon EKS
+title: NVIDIA Enterprise RAG and AI-Q Research Assistant on EKS
 sidebar_position: 9
 ---
 
 import CollapsibleContent from '../../../../src/components/CollapsibleContent';
 
 :::warning
-Deployment of AI-Q Research Assistant on EKS requires access to GPU instances (g5, p4, or p5 families). If your deployment isn't working, it's often due to missing access to these resources. This blueprint relies on Karpenter autoscaling for dynamic GPU provisioning.
+Deployment of Enterprise RAG and AI-Q on EKS requires access to GPU instances (g5, p4, or p5 families). This blueprint relies on Karpenter autoscaling for dynamic GPU provisioning.
 :::
 
 :::info
-AI-Q is a research assistant powered by advanced reasoning models, NeMo Retriever microservices, and web search, designed to help you research any topic. This implementation provides deployment on Amazon EKS with dynamic GPU autoscaling.
+This blueprint provides two deployment options: **Enterprise RAG Blueprint** (multi-modal document processing with NVIDIA Nemotron and NeMo Retriever Models) or the full **AI-Q Research Assistant** (adds automated research reports with web search). Both run on Amazon EKS with dynamic GPU autoscaling.
 
-Source: [NVIDIA AI-Q Research Assistant Blueprint](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
+Sources: [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag) | [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
 :::
 
-# NVIDIA AI-Q Research Assistant on Amazon EKS
+# NVIDIA Enterprise RAG & AI-Q Research Assistant on Amazon EKS
 
 ## What is NVIDIA AI-Q Research Assistant?
 
@@ -43,7 +43,7 @@ Per the [official architecture](https://github.com/NVIDIA-AI-Blueprints/aiq-rese
 **3. NVIDIA NeMo Retriever Microservices**
 - Multi-modal document ingestion
 - Graphic elements detection
-- Table structure extraction  
+- Table structure extraction
 - PaddleOCR for text recognition
 
 **4. NVIDIA NIM Microservices**
@@ -58,6 +58,24 @@ Per the [official architecture](https://github.com/NVIDIA-AI-Blueprints/aiq-rese
 ## Overview
 
 This blueprint implements the **[NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)** on Amazon EKS, combining the [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag) with AI-Q components for comprehensive research capabilities.
+
+### Deployment Options
+
+This blueprint supports two deployment modes based on your use case:
+
+**Option 1: Enterprise RAG Blueprint**
+- Deploy NVIDIA Enterprise RAG Blueprint with multi-modal document processing
+- Includes NeMo Retriever microservices and OpenSearch integration
+- Best for: Building custom RAG applications, document Q&A systems, knowledge bases
+- **Deploy Steps 1-8**
+
+**Option 2: Full AI-Q Research Assistant**
+- Includes everything from Option 1 plus AI-Q components
+- Adds automated research report generation with web search capabilities via Tavily API
+- Best for: Comprehensive research tasks, automated report generation, web-augmented research
+- **Deploy Steps 1-12**
+
+Both deployments include Karpenter autoscaling and enterprise security features. You can start with Option 1 and add AI-Q components later as your needs evolve.
 
 ### Deployment Approach
 
@@ -181,7 +199,7 @@ Install the following tools:
 
 - **NGC API Token**: Required for accessing NVIDIA NIM containers and AI Foundation models
   - **First, sign up through one of these options** (your API key will only work if you have one of these accounts):
-    - **Option 1 - NVIDIA Developer Program** (Quick Start): 
+    - **Option 1 - NVIDIA Developer Program** (Quick Start):
       - Sign up [here](https://build.nvidia.com/)
       - Free account for POCs and development workloads
       - Ideal for testing and evaluation
@@ -192,7 +210,8 @@ Install the following tools:
   - **Then, generate your API key**:
     - After signing up through Option 1 or 2, generate your API key at [NGC Personal Keys](https://org.ngc.nvidia.com/setup/personal-keys)
     - Set as `NGC_API_KEY` environment variable
-- **[Tavily API Key](https://tavily.com/)**: Required for AI-Q web search functionality
+- **[Tavily API Key](https://tavily.com/)**: **Required for Option 2: Full AI-Q deployment (Steps 9-12)**
+  - Not needed for Option 1: Enterprise RAG deployment (Steps 1-8)
   - Create account at [Tavily](https://tavily.com/)
   - Generate API key from dashboard
   - Set as `TAVILY_API_KEY` environment variable
@@ -306,8 +325,8 @@ echo "OpenSearch Endpoint: $OPENSEARCH_ENDPOINT"
 # NGC API Key
 export NGC_API_KEY="<your-ngc-api-key>"
 
-# Tavily API Key for AI-Q
-export TAVILY_API_KEY="<your-tavily-api-key>"
+# Tavily API Key for AI-Q (required for Option 2 - Steps 9-12)
+export TAVILY_API_KEY="<your-tavily-api-key>"  # Skip if deploying Option 1 only (Steps 1-8)
 ```
 
 ### Step 6: Integrate OpenSearch and Build Docker Images
@@ -328,7 +347,7 @@ Integrate OpenSearch support into RAG source:
 ```bash
 # Copy OpenSearch implementation into RAG source
 cp -r opensearch/vdb/opensearch rag/src/nvidia_rag/utils/vdb/
-cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py 
+cp opensearch/main.py rag/src/nvidia_rag/ingestor_server/main.py
 cp opensearch/vdb/__init__.py rag/src/nvidia_rag/utils/vdb/__init__.py
 cp opensearch/pyproject.toml rag/pyproject.toml
 ```
@@ -412,6 +431,16 @@ kubectl port-forward -n rag svc/ingestor-server 8082:8082
 
 > **Alternative**: If you need to expose services publicly, you can create an Ingress resource with appropriate authentication and security controls instead of using port-forward.
 
+---
+
+:::info Deployment Choice: AI-Q Research Assistant Components
+The following steps (9-12) deploy the AI-Q Research Assistant. Choose based on your use case:
+- **Enterprise RAG only**: Stop here. Your Enterprise RAG is accessible at `http://localhost:3001`
+- **Full AI-Q Solution**: Continue with Steps 9-12 to add automated research report generation and web search capabilities
+
+You can always deploy AI-Q components later if you start with Enterprise RAG only.
+:::
+
 ### Step 9: Deploy AI-Q Research Assistant
 
 ```bash
@@ -437,14 +466,16 @@ This deploys:
 
 Karpenter provisions an additional GPU instance for the AI-Q 70B model (default: g5.48xlarge).
 
+> **⏱️ Deployment Time**: The 70B Instruct LLM can take **up to 20 minutes** to download and deploy. Monitor deployment progress below.
+
 **Verify AI-Q Deployment:**
 
 ```bash
 # Check all AI-Q components
 kubectl get all -n nv-aira
 
-# Wait for all components to be ready
-kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=600s
+# Wait for all components to be ready (70B model download can take up to 20 minutes)
+kubectl wait --for=condition=ready pod -l app=aira -n nv-aira --timeout=1200s
 
 # Check pod distribution across GPU nodes
 kubectl get pods -n nv-aira -o wide
@@ -748,9 +779,10 @@ cd infra/nvidia-deep-research
 
 ---
 
-This deployment provides an [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) environment on Amazon EKS with enterprise-grade features including Karpenter automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
+This deployment provides the [NVIDIA Enterprise RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag) and [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) on Amazon EKS with enterprise-grade features including Karpenter automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
 
 **Additional Resources:**
-- [AI-Q on NVIDIA AI Foundation](https://build.nvidia.com/nvidia/aiq): Try the hosted version
-- [AI-Q GitHub Repository](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant): Official source code and documentation
-- [Get Started Notebook](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant): Interactive deployment guide
+- [NVIDIA Enterprise RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline)
+- [NVIDIA Enterprise RAG Blueprint Github](https://github.com/NVIDIA-AI-Blueprints/rag)
+- [NVIDIA AI-Q Research Assistant](https://build.nvidia.com/nvidia/aiq)
+- [NVIDIA AI-Q Research Assistant Github](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)

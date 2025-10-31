@@ -35,4 +35,3 @@ python3 scripts/batch_ingestion.py \
 
 # Cleanup
 rm -rf "$LOCAL_DATA_DIR"
-
