@@ -31,7 +31,7 @@ enable_p5_karpenter = true # p5*.{4,48}xlarge (1-8x H100)
 # Set enable_opensearch_serverless = true to create everything:
 # 1. OpenSearch Serverless collection (vector search)
 # 2. Encryption, network, and data access policies
-# 3. IAM role and policy (IRSA)
+# 3. IAM role and policy (EKS Pod Identity)
 # 4. Kubernetes namespace and service account
 #
 # Based on the manual setup guide in the README

@@ -4,30 +4,15 @@
 # This module creates:
 # 1. OpenSearch Serverless collection (vector search)
 # 2. Encryption, network, and data access policies
-# 3. IRSA-enabled Kubernetes service account for pod access
+# 3. EKS Pod Identity-enabled Kubernetes service account for pod access
 #
 #---------------------------------------------------------------
-
-terraform {
-  required_version = ">= 1.3.2"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.95"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.10"
-    }
-  }
-}
 
 #---------------------------------------------------------------
 # Variables
 #---------------------------------------------------------------
 variable "enable_opensearch_serverless" {
-  description = "Enable OpenSearch Serverless (collection, policies, IRSA, and service account)"
+  description = "Enable OpenSearch Serverless (collection, policies, Pod Identity, and service account)"
   type        = bool
   default     = true
 }
