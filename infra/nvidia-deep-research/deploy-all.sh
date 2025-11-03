@@ -92,14 +92,6 @@ echo "=================================================="
 # Check results
 if [ "$RAG_EXIT" -eq 0 ] && [ "$AIRA_EXIT" -eq 0 ]; then
     print_success "All deployments completed successfully!"
-    echo ""
-    print_info "Next steps:"
-    echo "  1. Start port forwarding: cd ../../blueprints/inference/nvidia-deep-research"
-    echo "  2. Access services: ./port-forward.sh start all"
-    echo "  3. Visit RAG Frontend: http://localhost:3001"
-    echo "  4. Visit AI-Q Frontend: http://localhost:3002"
-    echo ""
-    print_info "For data ingestion and usage guide, see: ../../blueprints/inference/nvidia-deep-research/README.md"
 
     # Cleanup temp files
     rm -f /tmp/deploy-rag.log /tmp/deploy-rag.exit /tmp/deploy-aira.log /tmp/deploy-aira.exit
