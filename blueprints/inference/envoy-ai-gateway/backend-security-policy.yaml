@@ -1,0 +1,29 @@
+# BackendSecurityPolicy for internal AI services
+# Since these are internal services, we use a minimal dummy auth
+apiVersion: v1
+kind: Secret
+metadata:
+  name: internal-auth-secret
+  namespace: default
+type: Opaque
+data:
+  apiKey: aW50ZXJuYWw= # base64 encoded "internal"
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: BackendSecurityPolicy
+metadata:
+  name: internal-services-auth
+  namespace: default
+spec:
+  targetRefs:
+  - group: aigateway.envoyproxy.io
+    kind: AIServiceBackend
+    name: self-hosted-text-llm
+  - group: aigateway.envoyproxy.io
+    kind: AIServiceBackend
+    name: deepseek-backend
+  type: APIKey
+  apiKey:
+    secretRef:
+      name: internal-auth-secret
+      namespace: default

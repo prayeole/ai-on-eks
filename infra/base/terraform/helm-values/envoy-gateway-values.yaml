@@ -1,0 +1,23 @@
+config:
+  envoyGateway:
+    extensionApis:
+      enableBackend: true
+    provider:
+      type: Kubernetes
+      kubernetes:
+        rateLimitDeployment:
+          patch:
+            type: StrategicMerge
+            value:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - imagePullPolicy: IfNotPresent
+                        name: envoy-ratelimit
+                        image: docker.io/envoyproxy/ratelimit:e74a664a
+    rateLimit:
+      backend:
+        type: Redis
+        redis:
+          url: redis.redis-system.svc.cluster.local:6379

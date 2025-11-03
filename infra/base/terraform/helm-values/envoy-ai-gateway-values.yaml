@@ -1,0 +1,14 @@
+controller:
+  args:
+    - -logLevel=debug
+    - --extProcImage=docker.io/envoyproxy/ai-gateway-extproc:c87e367d026808e73dac690a4a353753c1d7d89c
+    - --extProcImagePullPolicy=IfNotPresent
+    - --extProcLogLevel=debug
+    - --tlsCertDir=/certs
+    - --tlsCertName=tls.crt
+    - --tlsKeyName=tls.key
+    - --enableLeaderElection=true
+    - --rootPrefix=/
+    - --cacheSyncTimeout=2m
+    - --watchNamespaces=
+    - --port=:1063

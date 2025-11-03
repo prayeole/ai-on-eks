@@ -5,10 +5,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    chart: gateway-helm
+  sources:
+  - chart: gateway-helm
     repoURL: docker.io/envoyproxy
-    targetRevision: v0.0.0-latest
+    targetRevision: v1.5.3
+    helm:
+      valueFiles:
+      - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
+  - repoURL: https://github.com/samarsinghal/ai-on-eks
+    targetRevision: HEAD
+    ref: VALUES
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
