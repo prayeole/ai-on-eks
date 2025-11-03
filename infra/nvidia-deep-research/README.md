@@ -264,39 +264,55 @@ Clones RAG source, integrates OpenSearch, builds images and pushes to Amazon Ela
 
 ⏱️ **Wait time**: 10-15 minutes for image builds
 
-**3. Deploy Enterprise RAG**
+**3. Deploy Applications**
 
-Deploys RAG Blueprint with Helm and waits for pods to be ready:
+Choose based on your use case:
+
+**1) Deploy Enterprise RAG Only**
+
+For document Q&A without AI-Q research capabilities:
 
 ```bash
 ./deploy-rag.sh
 ```
 
-⏱️ **Wait time**: 10-20 minutes for model downloads and GPU provisioning
+⏱️ **Wait time**: 15-25 minutes
+
+This deploys the RAG Blueprint with multi-modal document processing, embeddings, reranking, and OpenSearch integration.
 
 ---
 
-**Deploy AI-Q Research Assistant**
+**2) Deploy AI-Q Research Assistant**
 
-> **📝 Note**: The following step is only needed if you want to deploy AI-Q for automated research report generation. AI-Q can work with or without web search (via Tavily API). If you only need Enterprise RAG for document Q&A, proceed to [Next Steps](#next-steps).
+AI-Q includes the Enterprise RAG Blueprint plus automated research report generation with optional web search capabilities.
 
-**4. Deploy AI-Q**
+**Option A: Deploy All at Once (Recommended - Faster)**
 
-Deploys AI-Q components (web search capabilities depend on Tavily API key):
+Deploy both RAG and AI-Q in parallel:
 
 ```bash
+./deploy-all.sh
+```
+
+⏱️ **Wait time**: 25-30 minutes
+
+
+**Option B: Deploy Sequentially**
+
+Deploy RAG first, then add AI-Q:
+
+```bash
+# Step 1: Deploy RAG
+./deploy-rag.sh
+
+# Step 2: Deploy AI-Q
+# AI-Q can work with or without web search (Tavily API is optional)
 ./deploy-aira.sh
 ```
 
-⏱️ **Wait time**: 15-20 minutes for 70B model download
+⏱️ **Wait time**: 15-25 minutes for RAG, then 20-30 minutes for AI-Q (35-55 minutes total)
 
 ---
-
-**Benefits of automation scripts:**
-- ✅ Prevents configuration errors
-- ✅ Validates prerequisites automatically
-- ✅ Saves environment for reuse
-- ✅ Clear progress indicators
 
 ### Manual Deployment
 
@@ -505,7 +521,6 @@ helm upgrade --install aira https://helm.ngc.nvidia.com/nvidia/blueprint/charts/
 This deploys:
 - **AIRA Backend**: Research assistant functionality with automated report generation
 - **70B Instruct Model**: For report generation (8 GPUs) - Karpenter will provision g5.48xlarge
-- **NGINX Proxy**: Routes requests to RAG and AIRA services
 - **Frontend**: User interface
 - **Web Search**: Enabled if Tavily API key is provided; RAG-only mode if not
 
