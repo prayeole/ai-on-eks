@@ -31,17 +31,15 @@ else
 fi
 
 # Verify required variables
-for var in NGC_API_KEY TAVILY_API_KEY; do
-    if [ -z "${!var}" ]; then
-        print_error "Missing $var"
-        exit 1
-    fi
-done
-
-# Check if RAG is deployed
-if ! kubectl get namespace rag &>/dev/null; then
-    print_error "RAG not deployed. Run ./deploy-rag.sh first"
+if [ -z "$NGC_API_KEY" ]; then
+    print_error "Missing NGC_API_KEY"
     exit 1
+fi
+
+# Tavily API key is optional - AI-Q can work in RAG-only mode without it
+if [ -z "$TAVILY_API_KEY" ]; then
+    print_info "Tavily API key not provided. AI-Q will operate in RAG-only mode (no web search)."
+    TAVILY_API_KEY="not-provided"
 fi
 
 # Deploy AIRA
