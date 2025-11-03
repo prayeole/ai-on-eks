@@ -53,7 +53,7 @@ start_rag() {
             print_success "RAG frontend: http://localhost:3001"
         fi
     fi
-    
+
     # Ingestor
     if [ -f "$RAG_INGESTOR_PID" ] && kill -0 $(cat "$RAG_INGESTOR_PID") 2>/dev/null; then
         print_info "Ingestor already running"
@@ -108,7 +108,7 @@ show_status() {
         print_success "Frontend: http://localhost:3001" || print_info "Frontend not running"
     [ -f "$RAG_INGESTOR_PID" ] && kill -0 $(cat "$RAG_INGESTOR_PID") 2>/dev/null && \
         print_success "Ingestor: http://localhost:8082" || print_info "Ingestor not running"
-    
+
     echo ""
     echo "AI-Q Services:"
     [ -f "$AIRA_FRONTEND_PID" ] && kill -0 $(cat "$AIRA_FRONTEND_PID") 2>/dev/null && \

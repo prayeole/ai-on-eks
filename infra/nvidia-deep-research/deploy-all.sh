@@ -100,7 +100,7 @@ if [ "$RAG_EXIT" -eq 0 ] && [ "$AIRA_EXIT" -eq 0 ]; then
     echo "  4. Visit AI-Q Frontend: http://localhost:3002"
     echo ""
     print_info "For data ingestion and usage guide, see: ../../blueprints/inference/nvidia-deep-research/README.md"
-    
+
     # Cleanup temp files
     rm -f /tmp/deploy-rag.log /tmp/deploy-rag.exit /tmp/deploy-aira.log /tmp/deploy-aira.exit
     exit 0
@@ -130,4 +130,3 @@ else
     echo "  AI-Q: cat /tmp/deploy-aira.log"
     exit 1
 fi
-
