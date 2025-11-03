@@ -18,7 +18,7 @@ locals {
   })
 }
 #-----------------------------------------------------------------------------------------
-# JupyterHub Single User IRSA, maybe that block could be incorporated in add-on registry
+# JupyterHub Single User Pod Identity Policy, maybe that block could be incorporated in add-on registry
 #-----------------------------------------------------------------------------------------
 resource "kubernetes_namespace" "jupyterhub" {
   count = var.enable_jupyterhub ? 1 : 0

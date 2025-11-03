@@ -1,6 +1,6 @@
 locals {
   argo_events_namespace       = "argo-events"
-  argo_events_service_account = "data-on-eks"
+  argo_events_service_account = "argo-events"
   argo_events_values = yamldecode(templatefile("${path.module}/helm-values/argo-events.yaml", {
   }))
 }
@@ -9,9 +9,9 @@ locals {
 # Argo Events Namespace and Service Account
 #---------------------------------------------------------------
 resource "kubectl_manifest" "argo_events_manifests" {
-  for_each = var.enable_argo_events ? fileset("${path.module}/manifests/argo-events", "*.yaml") : []
+  for_each = var.enable_argo_events ? fileset("${path.module}/helm-values/argo-events", "*.yaml") : []
 
-  yaml_body = file("${path.module}/manifests/argo-events/${each.value}")
+  yaml_body = file("${path.module}/helm-values/argo-events/${each.value}")
 
   depends_on = [
     kubectl_manifest.argo_events
@@ -26,7 +26,7 @@ module "argo_events_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 2.2"
 
-  name = "data-on-eks-argo-events"
+  name = "ai-on-eks-argo-events"
 
   additional_policy_arns = {
     sqs_access = aws_iam_policy.sqs_argo_events[0].arn
@@ -66,7 +66,7 @@ data "aws_iam_policy_document" "sqs_argo_events" {
 
 resource "aws_iam_policy" "sqs_argo_events" {
   count       = var.enable_argo_events ? 1 : 0
-  name        = "data-on-eks-argo-events-sqs-policy"
+  name        = "ai-on-eks-argo-events-sqs-policy"
   description = "IAM policy for Argo Events SQS access"
   policy      = data.aws_iam_policy_document.sqs_argo_events.json
   tags        = local.tags
