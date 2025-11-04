@@ -66,7 +66,7 @@ cd "$BLUEPRINT_DIR"
 aws s3 cp llama2_7b-training.sbatch s3://${S3_BUCKET_NAME}/ --region $REGION
 
 # update local kubeconfig
-aws eks update-kubeconfig --name slurm-on-eks
+aws eks update-kubeconfig --name slurm-on-eks --region $REGION
 
 # Install MariaDB CRDs and Operator
 helm repo add mariadb-operator https://helm.mariadb.com/mariadb-operator
