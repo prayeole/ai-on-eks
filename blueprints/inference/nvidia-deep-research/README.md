@@ -39,6 +39,8 @@ The [NVIDIA Enterprise RAG Blueprint](https://build.nvidia.com/nvidia/build-an-e
 
 ## Prerequisites
 
+> ⚠️ **Important - Cost Information**: This deployment runs on GPU instances which can incur significant costs. See the [Cost Considerations section](../../../infra/nvidia-deep-research/README.md#cost-considerations) in the deployment guide for detailed cost estimates. **Always clean up resources when not in use.**
+
 Before using these applications, ensure the infrastructure and applications are deployed:
 
 📖 **[Infrastructure & Application Deployment Guide](../../../infra/nvidia-deep-research/README.md)**
@@ -62,7 +64,7 @@ Once deployment is complete, you can access the services locally using port-forw
 **For RAG Services:**
 
 ```bash
-./port-forward.sh start rag
+./app.sh port start rag
 ```
 
 This enables access to:
@@ -72,7 +74,7 @@ This enables access to:
 **For AI-Q Services** (if deployed):
 
 ```bash
-./port-forward.sh start aira
+./app.sh port start aira
 ```
 
 This enables access to:
@@ -82,14 +84,14 @@ This enables access to:
 
 Check port forwarding status:
 ```bash
-./port-forward.sh status
+./app.sh port status
 ```
 
 Stop port forwarding:
 ```bash
-./port-forward.sh stop rag      # Stop RAG services
-./port-forward.sh stop aira     # Stop AI-Q services
-./port-forward.sh stop all      # Stop all services
+./app.sh port stop rag      # Stop RAG services
+./app.sh port stop aira     # Stop AI-Q services
+./app.sh port stop all      # Stop all services
 ```
 
 ### Using the Applications
@@ -156,19 +158,19 @@ Use the data ingestion script to batch process documents from an S3 bucket. Reco
 
 1. Ensure the RAG port-forward is running:
    ```bash
-   ./port-forward.sh start rag
+   ./app.sh port start rag
    ```
 
 2. Run the data ingestion script (it will prompt for S3 bucket details):
    ```bash
-   ./data_ingestion.sh
+   ./app.sh ingest
    ```
 
 3. Or set environment variables to skip prompts:
    ```bash
    export S3_BUCKET_NAME="your-pdf-bucket-name"
    export S3_PREFIX="documents/"  # Optional folder path
-   ./data_ingestion.sh
+   ./app.sh ingest
    ```
 
 The script will:
@@ -195,7 +197,33 @@ The RAG and AI-Q deployments include built-in observability tools for monitoring
 
 ### Access Monitoring Services
 
-To access observability dashboards, use kubectl port-forward:
+**Automated Approach (Recommended):**
+
+Start port-forwarding for all observability services:
+
+```bash
+./app.sh port start observability
+```
+
+This automatically port-forwards:
+- **Zipkin**: http://localhost:9411 - RAG distributed tracing
+- **Grafana**: http://localhost:8080 - RAG metrics and dashboards
+- **Phoenix**: http://localhost:6006 - AI-Q workflow tracing (if deployed)
+
+Check status:
+```bash
+./app.sh port status
+```
+
+Stop observability port-forwards:
+```bash
+./app.sh port stop observability
+```
+
+**Manual Approach:**
+
+<details>
+<summary>Manual kubectl port-forward commands</summary>
 
 **RAG Observability (Zipkin & Grafana):**
 
@@ -213,6 +241,8 @@ kubectl port-forward -n rag svc/rag-grafana 8080:80
 # Port-forward Phoenix for AI-Q tracing (run in a separate terminal)
 kubectl port-forward -n nv-aira svc/aira-phoenix 6006:6006
 ```
+
+</details>
 
 ### Access Monitoring UIs
 

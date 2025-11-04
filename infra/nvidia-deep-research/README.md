@@ -18,7 +18,7 @@ This guide covers the infrastructure deployment for the NVIDIA Enterprise RAG Bl
 - [Cleanup](#cleanup)
   - [Uninstall Applications Only](#uninstall-applications-only)
   - [Clean Up Infrastructure](#clean-up-infrastructure)
-- [Troubleshooting](#troubleshooting)
+- [Cost Considerations](#cost-considerations)
 - [Additional Resources](#additional-resources)
 
 ## What Are These Blueprints?
@@ -103,6 +103,8 @@ Karpenter automatically provisions GPU nodes based on workload requirements:
 - Support for multi-GPU instances (1-8 GPUs per node)
 
 ## Prerequisites
+
+> ⚠️ **Important - Cost Information**: This deployment uses GPU instances which can incur significant costs. Please review the [Cost Considerations](#cost-considerations) section at the end of this guide for detailed cost estimates before proceeding. **Always clean up resources when not in use.**
 
 Before deploying the infrastructure, ensure you have:
 
@@ -251,7 +253,7 @@ Use the provided bash scripts to automate deployment:
 Configures kubectl, collects API keys, verifies cluster, and patches Karpenter limits:
 
 ```bash
-./setup-environment.sh
+./deploy.sh setup
 ```
 
 **2. Build OpenSearch Images**
@@ -259,26 +261,24 @@ Configures kubectl, collects API keys, verifies cluster, and patches Karpenter l
 Clones RAG source, integrates OpenSearch, builds images and pushes to Amazon Elastic Container Registry (ECR):
 
 ```bash
-./build-opensearch-images.sh
+./deploy.sh build
 ```
 
 ⏱️ **Wait time**: 10-15 minutes for image builds
 
 **3. Deploy Applications**
 
-Choose based on your use case:
+Use the deployment script with your target:
 
 **1) Deploy Enterprise RAG Only**
 
 For document Q&A without AI-Q research capabilities:
 
 ```bash
-./deploy-rag.sh
+./deploy.sh rag
 ```
 
 ⏱️ **Wait time**: 15-25 minutes
-
-This deploys the RAG Blueprint with multi-modal document processing, embeddings, reranking, and OpenSearch integration.
 
 ---
 
@@ -291,11 +291,10 @@ AI-Q includes the Enterprise RAG Blueprint plus automated research report genera
 Deploy both RAG and AI-Q in parallel:
 
 ```bash
-./deploy-all.sh
+./deploy.sh all
 ```
 
 ⏱️ **Wait time**: 25-30 minutes
-
 
 **Option B: Deploy Sequentially**
 
@@ -303,11 +302,11 @@ Deploy RAG first, then add AI-Q:
 
 ```bash
 # Step 1: Deploy RAG
-./deploy-rag.sh
+./deploy.sh rag
 
 # Step 2: Deploy AI-Q
 # AI-Q can work with or without web search (Tavily API is optional)
-./deploy-aira.sh
+./deploy.sh aira
 ```
 
 ⏱️ **Wait time**: 15-25 minutes for RAG, then 20-30 minutes for AI-Q (35-55 minutes total)
@@ -564,13 +563,15 @@ Navigate to the blueprints directory and run the cleanup script:
 
 ```bash
 cd ../../blueprints/inference/nvidia-deep-research
-./cleanup-apps.sh
+```
+
+```bash
+./app.sh cleanup
 ```
 
 The cleanup script will:
 - Stop all port-forwarding processes
 - Uninstall AIRA and RAG Helm releases
-- Delete Kubernetes namespaces (rag, nv-aira)
 - Remove local port-forward PID files
 
 **Manual Application Cleanup:**
@@ -580,18 +581,16 @@ The cleanup script will:
 cd ../../blueprints/inference/nvidia-deep-research
 
 # Stop port-forwards
-./port-forward.sh stop all
+./app.sh port stop all
 
 # Uninstall AIRA (if deployed)
 helm uninstall aira -n nv-aira
-kubectl delete namespace nv-aira
 
 # Uninstall RAG
 helm uninstall rag -n rag
-kubectl delete namespace rag
 
-# Clean up local files
-rm -f .port-forward-*.pid
+# Clean up port-forward PID files
+rm -f /tmp/.port-forward-*.pid
 ```
 
 > **Note**: This only removes the applications. The EKS cluster and infrastructure will remain running. GPU nodes will be terminated by Karpenter within 5-10 minutes.
@@ -623,10 +622,7 @@ If the cleanup script encounters issues:
 ```bash
 cd terraform/_LOCAL
 
-# First, remove any remaining workloads
-kubectl delete namespace rag nv-aira --force --grace-period=0
-
-# Then destroy infrastructure
+# Destroy infrastructure
 terraform destroy -auto-approve
 
 # If specific resources fail, manually delete them from AWS Console:
@@ -635,29 +631,50 @@ terraform destroy -auto-approve
 # - VPC and networking resources
 ```
 
-## Troubleshooting
+## Cost Considerations
 
-### Common Issues
+<details>
+<summary><h3>Estimated Costs for This Deployment</h3></summary>
 
-**Issue**: Terraform fails with "insufficient capacity" error
-- **Solution**: Try a different region or availability zone with better GPU capacity
+> ⚠️ **Important**: GPU instances and supporting infrastructure can incur significant costs if left running. **Always clean up resources when not in use** to avoid unexpected charges.
 
-**Issue**: OpenSearch collection creation fails
-- **Solution**: Verify your AWS account has permissions for OpenSearch Serverless
+### Estimated Monthly Costs
 
-**Issue**: Karpenter not provisioning nodes
-- **Solution**: Check Karpenter logs: `kubectl logs -n karpenter -l app.kubernetes.io/name=karpenter`
+The following table shows approximate costs for the **default deployment** in US West 2 (Oregon) region. Actual costs will vary based on region, usage patterns, and workload duration.
 
-**Issue**: Pod Identity authentication fails
-- **Solution**: Verify the EKS Pod Identity agent is running: `kubectl get pods -n kube-system -l app.kubernetes.io/name=eks-pod-identity-agent`
+| Resource | Configuration | Estimated Monthly Cost | Notes |
+|----------|--------------|----------------------|-------|
+| **EKS Control Plane** | 1 cluster | **~$73/month** | Fixed cost: $0.10/hour × 730 hours |
+| **GPU Instances (RAG Only)** | 1x g5.48xlarge (8x A10G)<br/>2x g5.12xlarge (4x A10G each) | **~$20,171/month*** | Only when workloads are running<br/>Karpenter scales down when idle |
+| **GPU Instances (RAG + AI-Q)** | Additional g5.48xlarge | **~$32,061/month*** | Additional 70B model requires 8 more GPUs |
+| **OpenSearch Serverless** | 2-4 OCUs (typical) | **~$350-700/month** | $0.24/OCU-hour<br/>Scales based on data volume and queries |
+| **NAT Gateway** | 2 AZs | **~$66/month** | Fixed: 2 gateways × $0.045/hour × 730 hours<br/>Plus data processing: $0.045/GB |
+| **ECR Storage** | Docker images | **~$5-10/month** | 50-100GB of custom images<br/>ECR pricing: $0.10/GB/month |
+| **EBS Volumes** | Node storage | **~$72/month** | 300GB gp3 per node × 3 nodes × $0.08/GB<br/>Only charged when GPU nodes running |
+| **Data Transfer** | Cross-AZ, Internet | **Variable** | Depends on usage patterns<br/>Cross-AZ: $0.01/GB, Internet: $0.09/GB |
 
-### Getting Help
+**\*GPU Instance Costs assume continuous operation. See breakdown below.**
 
-For infrastructure-related issues:
-1. Check Terraform logs in `terraform/_LOCAL/`
-2. Review AWS CloudFormation events in the AWS Console
-3. Verify service quotas for GPU instances
-4. Check [EKS Best Practices Guide](https://aws.github.io/aws-eks-best-practices/)
+### GPU Instance Cost Breakdown
+
+GPU instances are the **primary cost driver**. Costs depend on instance type and how long they run:
+
+**Default Configuration (G5 Instances - RAG Only):**
+
+| Instance Type | GPUs | On-Demand Rate | Daily Cost (24hr) | Monthly Cost (730hr) |
+|---------------|------|----------------|-------------------|---------------------|
+| g5.48xlarge (×1) | 8x A10G | $16.288/hr | $390.91 | $11,890.24 |
+| g5.12xlarge (×2) | 4x A10G each | $5.672/hr each | $136.13 each | $4,140.56 each |
+
+**Total for RAG**: ~$20,171/month if running 24/7 (1× g5.48xlarge + 2× g5.12xlarge = $11,890 + $8,281)
+
+**With AI-Q (Additional 70B Model):**
+- Additional g5.48xlarge: $11,890.24/month
+- **Total**: ~$32,061/month if running 24/7 (2× g5.48xlarge + 2× g5.12xlarge)
+
+> **Note**: If using alternative instance types (G6e, P4, P5), costs will vary. Check [AWS EC2 Pricing](https://aws.amazon.com/ec2/pricing/on-demand/) for your region and instance type.
+
+</details>
 
 ## Additional Resources
 

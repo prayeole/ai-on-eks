@@ -66,5 +66,6 @@ blueprints/inference/nvidia-dynamo/dynamo_env.sh
 blueprints/inference/nvidia-dynamo/venv/
 
 # Deep Research-specific ignores
-blueprints/inference/nvidia-deep-research/rag/
+infra/nvidia-deep-research/rag/
+infra/nvidia-deep-research/opensearch/
 tmp/

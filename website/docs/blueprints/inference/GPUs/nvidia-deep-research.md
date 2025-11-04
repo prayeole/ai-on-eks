@@ -238,6 +238,10 @@ The [RAG pipeline](https://github.com/NVIDIA-AI-Blueprints/rag) processes docume
 
 ## Prerequisites
 
+:::info Important - Cost Information
+This deployment uses GPU instances which can incur significant costs. See [Cost Considerations](#cost-considerations) at the end of this guide for detailed cost estimates. **Always clean up resources when not in use.**
+:::
+
 **System Requirements**: Any Linux/macOS system with AWS CLI access
 
 Install the following tools:
@@ -374,7 +378,7 @@ This provisions your complete environment:
 Run the setup script to configure your environment:
 
 ```bash
-./setup-environment.sh
+./deploy.sh setup
 ```
 
 This script will:
@@ -389,7 +393,7 @@ This script will:
 Clone RAG source, integrate OpenSearch, and build custom Docker images:
 
 ```bash
-./build-opensearch-images.sh
+./deploy.sh build
 ```
 
 ⏱️ **Wait time**: 10-15 minutes for image builds
@@ -403,7 +407,7 @@ Choose based on your use case:
 For document Q&A without AI-Q research capabilities:
 
 ```bash
-./deploy-rag.sh
+./deploy.sh rag
 ```
 
 ⏱️ **Wait time**: 15-25 minutes
@@ -426,11 +430,10 @@ AI-Q includes the Enterprise RAG Blueprint plus automated research report genera
 Deploy both RAG and AI-Q in parallel:
 
 ```bash
-./deploy-all.sh
+./deploy.sh all
 ```
 
 ⏱️ **Wait time**: 25-30 minutes
-
 
 **All components deployed:**
 - **RAG**: 49B Nemotron Model, Embedding & Reranking Models, Data Ingestion Models, RAG Server, Frontend
@@ -442,11 +445,11 @@ Deploy RAG first, then add AI-Q:
 
 ```bash
 # Step 1: Deploy RAG
-./deploy-rag.sh
+./deploy.sh rag
 
 # Step 2: Deploy AI-Q
 # AI-Q can work with or without web search (Tavily API is optional)
-./deploy-aira.sh
+./deploy.sh aira
 ```
 
 ⏱️ **Wait time**: 15-25 minutes for RAG, then 20-30 minutes for AI-Q (35-55 minutes total)
@@ -669,7 +672,7 @@ cd ../../blueprints/inference/nvidia-deep-research
 Start RAG port-forwarding:
 
 ```bash
-./port-forward.sh start rag
+./app.sh port start rag
 ```
 
 This enables access to:
@@ -679,7 +682,7 @@ This enables access to:
 **Start Port Forwarding for AI-Q Services** (if deployed):
 
 ```bash
-./port-forward.sh start aira
+./app.sh port start aira
 ```
 
 This enables access to:
@@ -689,14 +692,14 @@ This enables access to:
 
 Check status:
 ```bash
-./port-forward.sh status
+./app.sh port status
 ```
 
 Stop port forwarding:
 ```bash
-./port-forward.sh stop rag      # Stop RAG services
-./port-forward.sh stop aira     # Stop AI-Q services
-./port-forward.sh stop all      # Stop all services
+./app.sh port stop rag      # Stop RAG services
+./app.sh port stop aira     # Stop AI-Q services
+./app.sh port stop all      # Stop all services
 ```
 
 </CollapsibleContent>
@@ -767,19 +770,19 @@ Use the data ingestion script to batch process documents from an S3 bucket. Reco
 
 1. Ensure the RAG port-forward is running:
    ```bash
-   ./port-forward.sh start rag
+   ./app.sh port start rag
    ```
 
 2. Run the data ingestion script (it will prompt for S3 bucket details):
    ```bash
-   ./data_ingestion.sh
+   ./app.sh ingest
    ```
 
 3. Or set environment variables to skip prompts:
    ```bash
    export S3_BUCKET_NAME="your-pdf-bucket-name"
    export S3_PREFIX="documents/"  # Optional folder path
-   ./data_ingestion.sh
+   ./app.sh ingest
    ```
 
 The script will:
@@ -807,9 +810,36 @@ After ingestion, verify your documents are available:
 
 The RAG and AI-Q deployments include built-in observability tools for monitoring performance, tracing requests, and viewing metrics.
 
-<CollapsibleContent header={<h3><span>Access Monitoring Services</span></h3>}>
+### Access Monitoring Services
 
-To access observability dashboards, use kubectl port-forward:
+**Automated Approach (Recommended):**
+
+Navigate to the blueprints directory and start port-forwarding:
+
+```bash
+cd ../../blueprints/inference/nvidia-deep-research
+```
+
+```bash
+./app.sh port start observability
+```
+
+This automatically port-forwards:
+- **Zipkin**: http://localhost:9411 - RAG distributed tracing
+- **Grafana**: http://localhost:8080 - RAG metrics and dashboards
+- **Phoenix**: http://localhost:6006 - AI-Q workflow tracing (if deployed)
+
+Check status:
+```bash
+./app.sh port status
+```
+
+Stop observability port-forwards:
+```bash
+./app.sh port stop observability
+```
+
+<CollapsibleContent header={<h4><span>Manual kubectl Commands</span></h4>}>
 
 **RAG Observability (Zipkin & Grafana):**
 
@@ -865,13 +895,15 @@ To remove the RAG and AI-Q applications while keeping the infrastructure:
 
 ```bash
 cd ../../blueprints/inference/nvidia-deep-research
-./cleanup-apps.sh
+```
+
+```bash
+./app.sh cleanup
 ```
 
 The cleanup script will:
 - Stop all port-forwarding processes
 - Uninstall AIRA and RAG Helm releases
-- Delete Kubernetes namespaces (rag, nv-aira)
 - Remove local port-forward PID files
 
 **Manual Application Cleanup:**
@@ -881,18 +913,16 @@ The cleanup script will:
 cd ../../blueprints/inference/nvidia-deep-research
 
 # Stop port-forwards
-./port-forward.sh stop all
+./app.sh port stop all
 
 # Uninstall AIRA (if deployed)
 helm uninstall aira -n nv-aira
-kubectl delete namespace nv-aira
 
 # Uninstall RAG
 helm uninstall rag -n rag
-kubectl delete namespace rag
 
-# Clean up local files
-rm -f .port-forward-*.pid
+# Clean up port-forward PID files
+rm -f /tmp/.port-forward-*.pid
 ```
 
 > **Note**: This only removes the applications. The EKS cluster and infrastructure will remain running. GPU nodes will be terminated by [Karpenter](https://karpenter.sh/) within 5-10 minutes.
@@ -919,6 +949,51 @@ cd ../../../infra/nvidia-deep-research
 
 **Duration**: ~10-15 minutes for complete teardown
 
+## Cost Considerations
+
+<CollapsibleContent header={<h3><span>Estimated Costs for This Deployment</span></h3>}>
+
+:::warning Important
+GPU instances and supporting infrastructure can incur significant costs if left running. **Always clean up resources when not in use** to avoid unexpected charges.
+:::
+
+### Estimated Monthly Costs
+
+The following table shows approximate costs for the **default deployment** in US West 2 (Oregon) region. Actual costs will vary based on region, usage patterns, and workload duration.
+
+| Resource | Configuration | Estimated Monthly Cost | Notes |
+|----------|--------------|----------------------|-------|
+| **EKS Control Plane** | 1 cluster | **~$73/month** | Fixed cost: $0.10/hour × 730 hours |
+| **GPU Instances (RAG Only)** | 1x g5.48xlarge (8x A10G)<br/>2x g5.12xlarge (4x A10G each) | **~$20,171/month*** | Only when workloads are running<br/>Karpenter scales down when idle |
+| **GPU Instances (RAG + AI-Q)** | Additional g5.48xlarge | **~$32,061/month*** | Additional 70B model requires 8 more GPUs |
+| **OpenSearch Serverless** | 2-4 OCUs (typical) | **~$350-700/month** | $0.24/OCU-hour<br/>Scales based on data volume and queries |
+| **NAT Gateway** | 2 AZs | **~$66/month** | Fixed: 2 gateways × $0.045/hour × 730 hours<br/>Plus data processing: $0.045/GB |
+| **ECR Storage** | Docker images | **~$5-10/month** | 50-100GB of custom images<br/>ECR pricing: $0.10/GB/month |
+| **EBS Volumes** | Node storage | **~$72/month** | 300GB gp3 per node × 3 nodes × $0.08/GB<br/>Only charged when GPU nodes running |
+| **Data Transfer** | Cross-AZ, Internet | **Variable** | Depends on usage patterns<br/>Cross-AZ: $0.01/GB, Internet: $0.09/GB |
+
+**\*GPU Instance Costs assume continuous operation. See breakdown below.**
+
+### GPU Instance Cost Breakdown
+
+GPU instances are the **primary cost driver**. Costs depend on instance type and how long they run:
+
+**Default Configuration (G5 Instances - RAG Only):**
+
+| Instance Type | GPUs | On-Demand Rate | Daily Cost (24hr) | Monthly Cost (730hr) |
+|---------------|------|----------------|-------------------|---------------------|
+| g5.48xlarge (×1) | 8x A10G | $16.288/hr | $390.91 | $11,890.24 |
+| g5.12xlarge (×2) | 4x A10G each | $5.672/hr each | $136.13 each | $4,140.56 each |
+
+**Total for RAG**: ~$20,171/month if running 24/7 (1× g5.48xlarge + 2× g5.12xlarge = $11,890 + $8,281)
+
+**With AI-Q (Additional 70B Model):**
+- Additional g5.48xlarge: $11,890.24/month
+- **Total**: ~$32,061/month if running 24/7 (2× g5.48xlarge + 2× g5.12xlarge)
+
+> **Note**: If using alternative instance types (G6e, P4, P5), costs will vary. Check [AWS EC2 Pricing](https://aws.amazon.com/ec2/pricing/on-demand/) for your region and instance type.
+
+</CollapsibleContent>
 
 ## References
 
@@ -978,9 +1053,3 @@ cd ../../../infra/nvidia-deep-research
 ---
 
 This deployment provides the [NVIDIA Enterprise RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag) and [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant) on Amazon EKS with enterprise-grade features including [Karpenter](https://karpenter.sh/) automatic scaling, OpenSearch Serverless integration, and seamless AWS service integration.
-
-**Additional Resources:**
-- [NVIDIA Enterprise RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline)
-- [NVIDIA Enterprise RAG Blueprint Github](https://github.com/NVIDIA-AI-Blueprints/rag)
-- [NVIDIA AI-Q Research Assistant](https://build.nvidia.com/nvidia/aiq)
-- [NVIDIA AI-Q Research Assistant Github](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
