@@ -5,9 +5,12 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/envoyproxy/ai-gateway
+  sources:
+  - repoURL: https://github.com/envoyproxy/ai-gateway
     path: manifests/charts/ai-gateway-helm
+    targetRevision: main
+  - repoURL: https://github.com/envoyproxy/ai-gateway
+    path: manifests/charts/ai-gateway-crds
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc
