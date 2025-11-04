@@ -1,34 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: envoy-ai-gateway-crds
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/envoyproxy/ai-gateway
-    path: manifests/charts/ai-gateway-crds-helm
-    targetRevision: main
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: envoy-ai-gateway-system
-  syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-    automated:
-      prune: true
-      selfHeal: true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: envoy-ai-gateway
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/envoyproxy/ai-gateway
+  sources:
+  - repoURL: https://github.com/envoyproxy/ai-gateway
+    path: manifests/charts/ai-gateway-crds-helm
+    targetRevision: main
+  - repoURL: https://github.com/envoyproxy/ai-gateway
     path: manifests/charts/ai-gateway-helm
     targetRevision: main
   destination:
