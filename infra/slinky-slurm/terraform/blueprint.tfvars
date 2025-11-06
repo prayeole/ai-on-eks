@@ -15,7 +15,7 @@ enable_service_mutator_webhook   = true
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration
 #
-# These are the EKS Cluster Addons managed by Terrafrom stack.
+# These are the EKS Cluster Addons managed by Terraform stack.
 # You can enable or disable any addon by setting the value to `true` or `false`.
 #
 # If you need to add a new addon that isn't listed here:
