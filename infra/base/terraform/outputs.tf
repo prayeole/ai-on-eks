@@ -8,6 +8,11 @@ output "configure_kubectl" {
 #   value       = var.enable_kube_prometheus_stack ? aws_secretsmanager_secret.grafana[0].name : null
 # }
 
+output "deployment_name" {
+  description = "Deployment name"
+  value       = var.name
+}
+
 output "fsx_s3_bucket_name" {
   description = "Name of the S3 bucket for FSx"
   value       = var.deploy_fsx_volume ? module.fsx_s3_bucket[0].s3_bucket_id : null
