@@ -12,7 +12,7 @@ spec:
     helm:
       valueFiles:
       - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
-  - repoURL: https://github.com/samarsinghal/ai-on-eks
+  - repoURL: https://github.com/awslabs/ai-on-eks
     targetRevision: HEAD
     ref: VALUES
   destination:
