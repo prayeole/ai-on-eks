@@ -26,5 +26,5 @@ resource "helm_release" "argocd" {
     EOT
   ]
 
-  depends_on = [module.eks.cluster_id, module.karpenter]
+  depends_on = [module.eks.cluster_id, module.karpenter, aws_eks_addon.aws_ebs_csi_driver]
 }
