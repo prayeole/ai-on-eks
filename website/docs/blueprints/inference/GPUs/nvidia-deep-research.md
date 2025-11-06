@@ -613,6 +613,51 @@ kubectl get pod -n rag -l app.kubernetes.io/component=rag-server -o jsonpath='{.
 kubectl get pod -n rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}'
 ```
 
+Deploy DCGM ServiceMonitor for GPU metrics:
+
+```bash
+# Deploy ServiceMonitor to connect RAG's Prometheus to infrastructure DCGM Exporter
+kubectl apply -f - <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dcgm-exporter
+  namespace: rag
+  labels:
+    release: rag
+spec:
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dcgm-exporter
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+EOF
+```
+
+This ServiceMonitor allows the Prometheus instance in the `rag` namespace to discover and scrape GPU metrics from the DCGM Exporter running in the `monitoring` namespace.
+
+**Deploy NVIDIA DCGM Grafana Dashboard (Optional but Recommended):**
+
+```bash
+# Download and deploy the official NVIDIA DCGM dashboard (with datasource fix)
+curl -s https://grafana.com/api/dashboards/12239 | jq -r '.json' | \
+    jq 'walk(if type == "object" and has("datasource") and (.datasource | type == "string") then .datasource = {"type": "prometheus", "uid": "prometheus"} else . end)' \
+    > /tmp/dcgm-dashboard.json
+kubectl create configmap nvidia-dcgm-exporter-dashboard \
+    -n rag \
+    --from-file=nvidia-dcgm-exporter.json=/tmp/dcgm-dashboard.json \
+    --dry-run=client -o yaml | \
+    kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+    kubectl apply -f -
+```
+
+This dashboard will be automatically loaded by Grafana's sidecar and will display GPU utilization, temperature, memory usage, and other GPU metrics.
+
 ---
 
 **Deploy AI-Q Research Assistant (Optional)**

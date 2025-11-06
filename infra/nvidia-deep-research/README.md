@@ -490,13 +490,60 @@ kubectl get pod -n rag -l app.kubernetes.io/component=rag-server -o jsonpath='{.
 kubectl get pod -n rag -l app=ingestor-server -o jsonpath='{.items[0].spec.serviceAccountName}' | xargs -I {} echo "Ingestor Server service account: {}"
 ```
 
+#### Step 8: Deploy DCGM ServiceMonitor for GPU Metrics
+
+Enable Prometheus to scrape GPU metrics from DCGM Exporter:
+
+```bash
+# Deploy ServiceMonitor to connect RAG's Prometheus to infrastructure DCGM Exporter
+kubectl apply -f - <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dcgm-exporter
+  namespace: rag
+  labels:
+    release: rag
+spec:
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dcgm-exporter
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+EOF
+```
+
+This ServiceMonitor allows the Prometheus instance in the `rag` namespace to discover and scrape GPU metrics from the DCGM Exporter running in the `monitoring` namespace.
+
+Deploy NVIDIA DCGM Grafana dashboard (optional but recommended):
+
+```bash
+# Download and deploy the official NVIDIA DCGM dashboard (with datasource fix)
+curl -s https://grafana.com/api/dashboards/12239 | jq -r '.json' | \
+    jq 'walk(if type == "object" and has("datasource") and (.datasource | type == "string") then .datasource = {"type": "prometheus", "uid": "prometheus"} else . end)' \
+    > /tmp/dcgm-dashboard.json
+kubectl create configmap nvidia-dcgm-exporter-dashboard \
+    -n rag \
+    --from-file=nvidia-dcgm-exporter.json=/tmp/dcgm-dashboard.json \
+    --dry-run=client -o yaml | \
+    kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+    kubectl apply -f -
+```
+
+This dashboard will be automatically loaded by Grafana's sidecar and will display GPU utilization, temperature, memory usage, and other GPU metrics.
+
 ---
 
 ### AI-Q Components Deployment
 
 > **📝 Deployment Choice**: Deploy these components if you need automated research report generation with web search capabilities. If your use case only requires the Enterprise RAG Blueprint for document Q&A, skip to [Next Steps](#next-steps).
 
-#### Step 8: Deploy AIRA Components
+#### Step 9: Deploy AIRA Components
 
 Deploy the AI-Q Research Assistant:
 
@@ -523,7 +570,7 @@ This deploys:
 - **Frontend**: User interface
 - **Web Search**: Enabled if Tavily API key is provided; RAG-only mode if not
 
-#### Step 9: Verify AIRA Deployment
+#### Step 10: Verify AIRA Deployment
 
 Check that all AIRA components are running:
 

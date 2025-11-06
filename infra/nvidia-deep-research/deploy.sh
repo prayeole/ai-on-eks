@@ -262,6 +262,44 @@ deploy_rag() {
         -n "$OPENSEARCH_NAMESPACE" \
         --timeout=1800s
 
+    # Deploy DCGM ServiceMonitor for GPU metrics
+    print_info "Deploying DCGM ServiceMonitor for GPU metrics..."
+    kubectl apply -f - <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dcgm-exporter
+  namespace: rag
+  labels:
+    release: rag
+spec:
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dcgm-exporter
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+EOF
+    print_success "DCGM ServiceMonitor deployed"
+
+    # Deploy DCGM Grafana Dashboard
+    print_info "Deploying NVIDIA DCGM Grafana dashboard..."
+    curl -s https://grafana.com/api/dashboards/12239 | jq -r '.json' | \
+        jq 'walk(if type == "object" and has("datasource") and (.datasource | type == "string") then .datasource = {"type": "prometheus", "uid": "prometheus"} else . end)' \
+        > /tmp/dcgm-dashboard.json
+    kubectl create configmap nvidia-dcgm-exporter-dashboard \
+        -n rag \
+        --from-file=nvidia-dcgm-exporter.json=/tmp/dcgm-dashboard.json \
+        --dry-run=client -o yaml | \
+        kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+        kubectl apply -f - >/dev/null
+    rm -f /tmp/dcgm-dashboard.json
+    print_success "DCGM dashboard deployed"
+
     print_success "RAG deployed successfully"
 }
 

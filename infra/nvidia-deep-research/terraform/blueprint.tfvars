@@ -1,5 +1,4 @@
-name          = "nvidia-deep-research"
-enable_argocd = true
+name = "nvidia-deep-research"
 # region              = "us-west-2"
 # eks_cluster_version = "1.33"
 
@@ -14,6 +13,9 @@ enable_argocd = true
 # 2. Update the `locals.cluster_addons` logic in `eks.tf` to include any required configuration
 #
 # -------------------------------------------------------------------------------------
+enable_cluster_addons = {
+  amazon-cloudwatch-observability = false
+}
 
 # -------------------------------------------------------------------------------------
 # Karpenter Custom NodePools Configuration
