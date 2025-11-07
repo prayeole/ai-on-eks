@@ -635,9 +635,12 @@ helm uninstall aira -n nv-aira
 
 # Uninstall RAG
 helm uninstall rag -n rag
+```
 
-# Clean up port-forward PID files
-rm -f /tmp/.port-forward-*.pid
+**(Optional) Clean up temporary files created during deployment:**
+
+```bash
+rm /tmp/.port-forward-*.pid
 ```
 
 > **Note**: This only removes the applications. The EKS cluster and infrastructure will remain running. GPU nodes will be terminated by Karpenter within 5-10 minutes.

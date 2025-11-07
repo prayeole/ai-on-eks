@@ -297,7 +297,11 @@ EOF
         --dry-run=client -o yaml | \
         kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
         kubectl apply -f - >/dev/null
-    rm -f /tmp/dcgm-dashboard.json
+
+    # Clean up temporary file
+    if [ -f /tmp/dcgm-dashboard.json ]; then
+        rm /tmp/dcgm-dashboard.json
+    fi
     print_success "DCGM dashboard deployed"
 
     print_success "RAG deployed successfully"
@@ -387,7 +391,11 @@ deploy_all() {
         print_success "All deployments completed successfully!"
 
         # Cleanup temp files
-        rm -f /tmp/deploy-rag.log /tmp/deploy-rag.exit /tmp/deploy-aira.log /tmp/deploy-aira.exit
+        for file in /tmp/deploy-rag.log /tmp/deploy-rag.exit /tmp/deploy-aira.log /tmp/deploy-aira.exit; do
+            if [ -f "$file" ]; then
+                rm "$file"
+            fi
+        done
         exit 0
     elif [ "$RAG_EXIT" -eq 0 ]; then
         print_warning "RAG deployed successfully, but AI-Q failed"

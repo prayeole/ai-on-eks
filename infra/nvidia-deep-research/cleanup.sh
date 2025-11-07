@@ -9,16 +9,23 @@ cd ../..
 
 # Clean up configuration
 echo "Cleaning up configuration files..."
-rm -f .env 2>/dev/null || true
-rm -rf /tmp/.port-forward-*.pid 2>/dev/null || true
+
+# Clean up PID files
+for pid_file in /tmp/.port-forward-*.pid; do
+    if [ -f "$pid_file" ]; then
+        rm "$pid_file"
+    fi
+done
 echo "Configuration cleaned up"
 
 echo ""
 echo "============================================"
-echo "Manual cleanup required:"
+echo "Manual cleanup (if desired):"
+echo "  - .env        (contains reusable API keys)"
 echo "  - rag/        (RAG source code)"
 echo "  - opensearch/ (OpenSearch integration files)"
 echo ""
-echo "To remove these directories, run:"
-echo "  rm -rf rag opensearch"
+echo "To remove these, run:"
+echo "  rm .env"
+echo "  rm -r rag opensearch"
 echo "============================================"

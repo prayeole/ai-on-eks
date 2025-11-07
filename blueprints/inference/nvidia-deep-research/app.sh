@@ -110,7 +110,7 @@ stop_rag_ports() {
     for pid_file in "$RAG_FRONTEND_PID" "$RAG_INGESTOR_PID"; do
         if [ -f "$pid_file" ]; then
             kill $(cat "$pid_file") 2>/dev/null || true
-            rm -f "$pid_file"
+            rm "$pid_file"
         fi
     done
     print_info "RAG port-forwards stopped"
@@ -119,7 +119,7 @@ stop_rag_ports() {
 stop_aira_ports() {
     if [ -f "$AIRA_FRONTEND_PID" ]; then
         kill $(cat "$AIRA_FRONTEND_PID") 2>/dev/null || true
-        rm -f "$AIRA_FRONTEND_PID"
+        rm "$AIRA_FRONTEND_PID"
     fi
     print_info "AIRA port-forward stopped"
 }
@@ -176,7 +176,7 @@ stop_observability() {
     for pid_file in "$RAG_ZIPKIN_PID" "$RAG_GRAFANA_PID" "$AIRA_PHOENIX_PID"; do
         if [ -f "$pid_file" ]; then
             kill $(cat "$pid_file") 2>/dev/null || true
-            rm -f "$pid_file"
+            rm "$pid_file"
         fi
     done
     print_info "Observability port-forwards stopped"
@@ -290,7 +290,9 @@ ingest_data() {
 
     if [ ! -f "$TEMP_DIR/batch_ingestion.py" ]; then
         print_error "Failed to download batch_ingestion.py"
-        rm -rf "$TEMP_DIR"
+        if [ -d "$TEMP_DIR" ]; then
+            rm -r "$TEMP_DIR"
+        fi
         exit 1
     fi
 
@@ -310,7 +312,12 @@ ingest_data() {
       -v
 
     # Cleanup
-    rm -rf "$LOCAL_DATA_DIR" "$TEMP_DIR"
+    if [ -d "$LOCAL_DATA_DIR" ]; then
+        rm -r "$LOCAL_DATA_DIR"
+    fi
+    if [ -d "$TEMP_DIR" ]; then
+        rm -r "$TEMP_DIR"
+    fi
     print_success "Ingestion complete"
 }
 
@@ -344,7 +351,11 @@ cleanup_apps() {
     fi
 
     # Clean up temp files
-    rm -f /tmp/.port-forward-*.pid 2>/dev/null || true
+    for pid_file in /tmp/.port-forward-*.pid; do
+        if [ -f "$pid_file" ]; then
+            rm "$pid_file"
+        fi
+    done
 
     print_success "Cleanup complete"
     print_info "GPU nodes will be terminated by Karpenter in 5-10 minutes"
