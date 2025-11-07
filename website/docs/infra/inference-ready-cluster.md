@@ -6,7 +6,7 @@ sidebar_label: Inference-Ready Cluster
 
 The Inference-Ready EKS Cluster is a pre-configured infrastructure solution designed specifically for AI/ML inference
 workloads. This solution provides a Kubernetes cluster with all the necessary components to deploy and run inference
-services using the AI on EKS [inference charts](../blueprints/inference/inference-charts.md) or your own deployments
+services using the AI on EKS [inference charts](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md) or your own deployments
 and models.
 
 An expanded [Readme](https://github.com/awslabs/ai-on-eks/tree/main/infra/solutions/inference-ready-cluster/README.md)
@@ -21,7 +21,7 @@ requirements, different tools are needed to properly deploy, run, and scale the 
 models that aren't just LLMs, such as text -> image diffusion models or more traditional Machine Learning models.
 
 This infrastructure is meant to be the first layer of support. Alongside
-the [Inference Charts](../blueprints/inference/inference-charts.md) and the Guidance you'll also find in this
+the [Inference Charts](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md) and the Guidance you'll also find in this
 repository, AI on EKS aims to equip you with all the tools and knowledge you need to be able to run the inference you
 want.
 
@@ -49,7 +49,7 @@ features:
 - **Autoscaling**: Karpenter-based node autoscaling for cost optimization
 
 The cluster is specifically designed to work seamlessly with the AI on
-EKS [Inference Charts](../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for
+EKS [Inference Charts](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md), providing a complete end-to-end solution for
 deploying inference workloads.
 
 ## Resources
@@ -177,7 +177,7 @@ dashboards are configured to automatically visualize the metrics and logs side b
 ### Step 7: Cluster Ready
 
 Users can access EKS API and can deploy containerized AI/ML inference workloads via Kubernetes CLI using the AI on EKS
-[inference charts](../blueprints/inference/inference-charts.md) or other repositories by interacting with AWS Network
+[inference charts](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md) or other repositories by interacting with AWS Network
 Load Balancer (NLB) endpoint.
 
 ### Step 8: Verify Deployment
@@ -402,22 +402,17 @@ The cluster supports all inference patterns provided by the inference charts:
 Once your cluster is ready, you can deploy inference workloads:
 
 ```bash
-# Navigate to inference charts
-cd ../../../blueprints/inference/inference-charts
-
 # Create Hugging Face token secret
 kubectl create secret generic hf-token --from-literal=token=your_hf_token
 
-# Deploy GPU Ray-vLLM with Llama model
-helm install llama-inference . \
-  --values values-llama-32-1b-ray-vllm.yaml
+# Deploy GPU Qwen 3 1.7B model with vLLM
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-# Deploy Neuron vLLM with optimized model
-helm install neuron-inference . \
-  --values values-llama-31-8b-vllm-neuron.yaml
+helm install qwen3-1-7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
 ```
 
-Please check the [inference charts](../blueprints/inference/inference-charts.md) section for a deeper look at what is
+Please check the [inference charts](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md) section for a deeper look at what is
 available.
 
 ### Observability Integration
