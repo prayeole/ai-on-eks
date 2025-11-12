@@ -1,0 +1,47 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: text-llm-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: text-llm.default.svc.cluster.local
+        port: 8000
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: llama-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: llama-backend.default.svc.cluster.local
+        port: 8000
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: text-llm
+  namespace: default
+spec:
+  backendRef:
+    name: text-llm-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: OpenAI
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: llama
+  namespace: default
+spec:
+  backendRef:
+    name: llama-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: OpenAI

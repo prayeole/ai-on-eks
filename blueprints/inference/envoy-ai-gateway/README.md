@@ -29,111 +29,54 @@ Envoy AI Gateway provides a unified entry point for multiple AI models with adva
 
 ## Quick Start
 
-### 1. Deploy Common Infrastructure (Required Order)
+### 1. Deploy Common Infrastructure
 
 ```bash
 # Step 1: Enable AI Gateway controller features
 kubectl apply -f gateway.yaml
 
-# Step 2: Expose vLLM text model
-kubectl apply -f text-llm.yaml
+# Step 2: Deploy gpt-oss-20b-vllm model
+helm install text-llm . -f values-gpt-oss-20b-vllm.yaml \
+  --set nameOverride=text-llm \
+  --set fullnameOverride=text-llm \
+  --set inference.serviceName=text-llm
 
-# Step 3: Deploy DeepSeek model
-kubectl apply -f deepseek.yaml
-
-
+# Step 3: Deploy llama-32-1b-vllm model
+helm install llama-backend . -f values-llama-32-1b-vllm.yaml \                                             
+      --set nameOverride=llama-backend \
+      --set fullnameOverride=llama-backend \
+      --set inference.serviceName=llama-backend
+```
 
 ## Use-Cases
 
-### 🎯 Multi-Model Routing
-**Purpose**: Route requests to different AI models based on HTTP headers
-
-**Features**:
+### Multi-Model Routing
+Route requests to different AI models based on HTTP headers
+#### Features:
 - Header-based routing using `x-ai-eg-model`
-- Support for self-hosted models (vLLM, DeepSeek)
-- Real AI model integration with DeepSeek R1 Distill Llama 8B
+- Support for self-hosted models (gpt-oss-20b-vllm, llama-32-1b-vllm)
 - Auto-detecting test client
 
-**Models Supported**:
-- `text-llm`: Self-hosted vLLM on Inferentia2
-- `deepseek-r1-distill-llama-8b`: Real self-hosted model with actual token usage
+#### Prerequisites
+Deploy common infrastructure first model and gateway resources.
 
+#### Deploy
+```bash
+cd multi-model-routing
+kubectl apply -f ai-service-backend.yaml
+kubectl apply -f ai-gateway-route.yaml
+```
 
-### Resource Dependencies & Purpose
-
-**Core Infrastructure (Deploy First)**:
-1. `envoy-gateway-class.yaml` - Enables AI Gateway controller features
-2. `envoy-proxy-config.yaml` - Configures proxy with AI extensions and observability
-3. `client-traffic-policy.yaml` - Sets appropriate timeouts for AI model responses
-4. `gateway.yaml` - Creates the main entry point for all AI traffic
-
-**Backend Services (Deploy Second)**:
-5. `text-llm.yaml` - Exposes existing vLLM service for AI Gateway routing and registers backend services with AI Gateway controller
-6. `deepseek.yaml` - deploy and registers DeepSeek model as available backend
-
-**Use-Case Specific (Deploy Third)**:
-- **Multi-Model Routing**: `multi-model-routing/ai-gateway-route.yaml` + `reference-grant.yaml`
-
-## Configuration
-
-### Gateway Configuration
-- **Gateway Class**: `envoy-gateway`
-- **Gateway Name**: `ai-gateway`
-- **Namespace**: `default`
-- **Ports**: HTTP (80), HTTPS (443)
-
-### AI Models Namespace
-- **Namespace**: `ai-models`
-- **Purpose**: Isolate AI model services
-- **Access**: Enabled via ReferenceGrant
-
-## Testing
-
+#### Test
 Each use-case includes a Python test client (`client.py`) that:
 - Auto-detects the Gateway URL using kubectl
 - Tests the specific functionality (routing or rate limiting)
 - Provides detailed output and validation
 - Includes usage examples
 
-### Example Usage
 ```bash
 # Test multi-model routing
-cd multi-model-routing/
 python3 client.py
-
-
-## Monitoring
-
-### Gateway Status
-```bash
-kubectl get gateway ai-gateway -o yaml
-kubectl get aigatewayroute -o wide
-kubectl get httproute -o wide
-```
-
-### AI Gateway Controller Logs
-```bash
-kubectl logs -n envoy-gateway-system deployment/ai-gateway-controller
-```
-
-### Envoy Gateway Logs
-```bash
-kubectl logs -n envoy-gateway-system deployment/envoy-gateway
-```
-
-### Validation Commands
-```bash
-# Check AI Gateway Route status
-kubectl describe aigatewayroute multi-model-route
-
-# Verify Backend resources
-kubectl get backend -o wide
-
-# Check AIServiceBackend status
-kubectl get aiservicebackend -o wide
-
-# Test Gateway connectivity
-curl -H "x-ai-eg-model: text-llm" http://$GATEWAY_URL/v1/chat/completions
 ```
 
 ## Resources

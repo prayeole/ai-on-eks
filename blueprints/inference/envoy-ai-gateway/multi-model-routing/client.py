@@ -31,18 +31,17 @@ def test_model(gateway_url, model_name, test_name):
         'x-ai-eg-model': model_name
     }
     
+    # Use completion endpoint for both models
+    endpoint = "/v1/completions"
     payload = {
-        "model": model_name,
-        "messages": [
-            {"role": "user", "content": f"Hello from {model_name}! Please respond briefly."}
-        ],
+        "prompt": f"Hello from {model_name}! Please respond briefly.",
         "max_tokens": 100,
         "temperature": 0.7
     }
     
     try:
         response = requests.post(
-            f"{gateway_url}/v1/chat/completions",
+            f"{gateway_url}{endpoint}",
             headers=headers,
             json=payload,
             timeout=30
@@ -77,8 +76,8 @@ def main():
     
     # Test essential models
     models_to_test = [
-        ("text-llm", "Mock Text LLM"),
-        ("deepseek-r1-distill-llama-8b", "DeepSeek R1 Distill Llama 8B")
+        ("openai/gpt-oss-20b", "gpt-oss-20b-vllm"),
+        ("NousResearch/Llama-3.2-1B", "Llama-3.2-1B")
     ]
     
     for model_name, test_name in models_to_test:
