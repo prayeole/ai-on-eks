@@ -3,7 +3,7 @@
 #-------------------------------------------------------------------
 #
 # Step 1: Deploy Base Infrastructure
-# git clone https://github.com/samarsinghal/ai-on-eks.git
+# git clone https://github.com/awslabs/ai-on-eks.git
 # cd ai-on-eks/infra/trainium-inferentia/ && ./install.sh
 #
 # Step 2: Deploy Llama-70B

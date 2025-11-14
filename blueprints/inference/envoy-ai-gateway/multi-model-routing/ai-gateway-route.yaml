@@ -9,13 +9,6 @@ spec:
       kind: Gateway
       group: gateway.networking.k8s.io
   rules:
-    # - matches:
-    #     - headers:
-    #         - name: x-ai-eg-model
-    #           type: Exact
-    #           value: text-llm
-    #   backendRefs:
-    #     - name: self-hosted-text-llm
     - matches:
         - headers:
             - name: x-ai-eg-model
