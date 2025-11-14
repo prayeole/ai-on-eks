@@ -7,7 +7,7 @@ availability_zones_count         = 4
 enable_soci_snapshotter          = true
 enable_envoy_ai_gateway          = true
 enable_envoy_gateway             = true
-region                           = "us-west-2"
+# region                           = "us-west-2"
 # eks_cluster_version              = "1.33"
 
 # -------------------------------------------------------------------------------------

@@ -46,28 +46,3 @@ spec:
     group: gateway.envoyproxy.io
   schema:
     name: OpenAI
-# ---
-# DeepSeek Backend resources
-# apiVersion: gateway.envoyproxy.io/v1alpha1
-# kind: Backend
-# metadata:
-#   name: deepseek-backend
-#   namespace: default
-# spec:
-#   endpoints:
-#   - fqdn:
-#       hostname: deepseekr1-dis-llama-8b-ray-vllm-serve-svc.default.svc.cluster.local
-#       port: 8000
-# ---
-# apiVersion: aigateway.envoyproxy.io/v1alpha1
-# kind: AIServiceBackend
-# metadata:
-#   name: deepseek-backend
-#   namespace: default
-# spec:
-#   backendRef:
-#     group: gateway.envoyproxy.io
-#     kind: Backend
-#     name: deepseek-backend
-#   schema:
-#     name: OpenAI

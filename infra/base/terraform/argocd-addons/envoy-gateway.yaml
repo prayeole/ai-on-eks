@@ -17,11 +17,6 @@ spec:
               enableBackend: true
             provider:
               type: Kubernetes
-      # valueFiles:
-      # - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
-  # - repoURL: https://github.com/awslabs/ai-on-eks
-  #   targetRevision: HEAD
-  #   ref: VALUES
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
