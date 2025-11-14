@@ -9,7 +9,7 @@ def get_gateway_url():
     """Auto-detect the Gateway URL using kubectl"""
     try:
         result = subprocess.run([
-            'kubectl', 'get', 'gateway', 'ai-gateway', 
+            'kubectl', 'get', 'gateway', 'ai-gateway',
             '-o', 'jsonpath={.status.addresses[0].value}'
         ], capture_output=True, text=True, check=True)
         
