@@ -12,7 +12,7 @@ def get_gateway_url():
             'kubectl', 'get', 'gateway', 'ai-gateway',
             '-o', 'jsonpath={.status.addresses[0].value}'
         ], capture_output=True, text=True, check=True)
-        
+
         if result.stdout.strip():
             return f"http://{result.stdout.strip()}"
         else:
@@ -25,12 +25,12 @@ def get_gateway_url():
 def test_model(gateway_url, model_name, test_name):
     """Test a specific model through the AI Gateway"""
     print(f"\n=== Testing {test_name} ===")
-    
+
     headers = {
         'Content-Type': 'application/json',
         'x-ai-eg-model': model_name
     }
-    
+
     payload = {
         # "model": model_name,
         "messages": [
@@ -39,7 +39,7 @@ def test_model(gateway_url, model_name, test_name):
         "max_tokens": 100,
         "temperature": 0.7
     }
-    
+
     try:
         response = requests.post(
             f"{gateway_url}/v1/chat/completions",
@@ -47,10 +47,10 @@ def test_model(gateway_url, model_name, test_name):
             json=payload,
             timeout=30
         )
-        
+
         print(f"Status Code: {response.status_code}")
         print(f"Headers sent: {headers}")
-        
+
         if response.status_code == 200:
             result = response.json()
             print(f"✅ SUCCESS: {test_name}")
@@ -59,31 +59,31 @@ def test_model(gateway_url, model_name, test_name):
         else:
             print(f"❌ FAILED: {test_name}")
             print(f"Response: {response.text}")
-            
+
     except requests.exceptions.RequestException as e:
         print(f"❌ ERROR: {test_name} - {e}")
 
 def main():
     print("🚀 AI Gateway Multi-Model Routing Test")
     print("=" * 50)
-    
+
     # Auto-detect Gateway URL
     gateway_url = get_gateway_url()
     if not gateway_url:
         print("❌ Could not determine Gateway URL. Exiting.")
         sys.exit(1)
-    
+
     print(f"Gateway URL: {gateway_url}")
-    
+
     # Test essential models
     models_to_test = [
         ("openai/gpt-oss-20b", "OpenAI GPT OSS 20B vLLM"),
         ("NousResearch/Llama-3.2-1B", "Llama 32 1B vLLM")
     ]
-    
+
     for model_name, test_name in models_to_test:
         test_model(gateway_url, model_name, test_name)
-    
+
     print(f"\n🎯 Multi-Model Routing Test Complete!")
     print("=" * 50)
     print("📋 Summary:")
