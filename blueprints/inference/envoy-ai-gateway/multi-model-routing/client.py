@@ -32,7 +32,7 @@ def test_model(gateway_url, model_name, test_name):
     }
     
     payload = {
-        "model": model_name,
+        # "model": model_name,
         "messages": [
             {"role": "user", "content": f"Hello from {model_name}! Please respond briefly."}
         ],
@@ -77,8 +77,8 @@ def main():
     
     # Test essential models
     models_to_test = [
-        ("text-llm", "Mock Text LLM"),
-        ("deepseek-r1-distill-llama-8b", "DeepSeek R1 Distill Llama 8B")
+        ("openai/gpt-oss-20b", "OpenAI GPT OSS 20B vLLM"),
+        ("NousResearch/Llama-3.2-1B", "Llama 32 1B vLLM")
     ]
     
     for model_name, test_name in models_to_test:

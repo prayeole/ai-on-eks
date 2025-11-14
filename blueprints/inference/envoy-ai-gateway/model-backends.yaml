@@ -1,0 +1,73 @@
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: llama-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: llama-backend.default.svc.cluster.local
+        port: 8000
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: llama
+  namespace: default
+spec:
+  backendRef:
+    name: llama-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: OpenAI
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: gpt-oss-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: gpt-oss-backend.default.svc.cluster.local
+        port: 8000
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: gpt-oss
+  namespace: default
+spec:
+  backendRef:
+    name: gpt-oss-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: OpenAI
+# ---
+# DeepSeek Backend resources
+# apiVersion: gateway.envoyproxy.io/v1alpha1
+# kind: Backend
+# metadata:
+#   name: deepseek-backend
+#   namespace: default
+# spec:
+#   endpoints:
+#   - fqdn:
+#       hostname: deepseekr1-dis-llama-8b-ray-vllm-serve-svc.default.svc.cluster.local
+#       port: 8000
+# ---
+# apiVersion: aigateway.envoyproxy.io/v1alpha1
+# kind: AIServiceBackend
+# metadata:
+#   name: deepseek-backend
+#   namespace: default
+# spec:
+#   backendRef:
+#     group: gateway.envoyproxy.io
+#     kind: Backend
+#     name: deepseek-backend
+#   schema:
+#     name: OpenAI

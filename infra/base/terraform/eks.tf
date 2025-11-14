@@ -26,7 +26,7 @@ locals {
     aws-ebs-csi-driver = {
       service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
       most_recent              = false
-      addon_version            = "v1.51.1-eksbuild.1"
+      addon_version            = "v1.48.0-eksbuild.1"
     }
 
     amazon-cloudwatch-observability = {

@@ -9,18 +9,24 @@ spec:
       kind: Gateway
       group: gateway.networking.k8s.io
   rules:
+    # - matches:
+    #     - headers:
+    #         - name: x-ai-eg-model
+    #           type: Exact
+    #           value: text-llm
+    #   backendRefs:
+    #     - name: self-hosted-text-llm
     - matches:
         - headers:
             - name: x-ai-eg-model
               type: Exact
-              value: text-llm
+              value: openai/gpt-oss-20b
       backendRefs:
-        - name: self-hosted-text-llm
+        - name: gpt-oss
     - matches:
         - headers:
             - name: x-ai-eg-model
               type: Exact
-              value: deepseek-r1-distill-llama-8b
+              value: NousResearch/Llama-3.2-1B
       backendRefs:
-        - name: deepseek-backend
-
+        - name: llama

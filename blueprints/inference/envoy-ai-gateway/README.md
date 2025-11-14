@@ -35,13 +35,20 @@ Envoy AI Gateway provides a unified entry point for multiple AI models with adva
 # Step 1: Enable AI Gateway controller features
 kubectl apply -f gateway.yaml
 
-# Step 2: Expose vLLM text model
-kubectl apply -f text-llm.yaml
+# Step 2: Create a Kubernetes secret with your Hugging Face token
+kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
 
-# Step 3: Deploy DeepSeek model
-kubectl apply -f deepseek.yaml
+# Step 2: Deploy gpt-oss-20b-vllm model using inference chart
+helm install text-llm . -f values-gpt-oss-20b-vllm.yaml \
+  --set nameOverride=text-llm \
+  --set fullnameOverride=text-llm \
+  --set inference.serviceName=text-llm
 
-
+# Step 3: Deploy llama-32-1b-vllm model using inference chart
+helm install llama-backend . -f values-llama-32-1b-vllm.yaml \
+  --set nameOverride=llama-backend \
+  --set fullnameOverride=llama-backend \
+  --set inference.serviceName=llama-backend
 
 ## Use-Cases
 
@@ -50,29 +57,20 @@ kubectl apply -f deepseek.yaml
 
 **Features**:
 - Header-based routing using `x-ai-eg-model`
-- Support for self-hosted models (vLLM, DeepSeek)
-- Real AI model integration with DeepSeek R1 Distill Llama 8B
+- Support for self-hosted models
+- Real AI model integration with OpenAI GPT OSS 20B, Llama 3B
 - Auto-detecting test client
-
-**Models Supported**:
-- `text-llm`: Self-hosted vLLM on Inferentia2
-- `deepseek-r1-distill-llama-8b`: Real self-hosted model with actual token usage
-
 
 ### Resource Dependencies & Purpose
 
 **Core Infrastructure (Deploy First)**:
-1. `envoy-gateway-class.yaml` - Enables AI Gateway controller features
-2. `envoy-proxy-config.yaml` - Configures proxy with AI extensions and observability
-3. `client-traffic-policy.yaml` - Sets appropriate timeouts for AI model responses
-4. `gateway.yaml` - Creates the main entry point for all AI traffic
+ `gateway.yaml` - Creates the main entry point for all AI traffic, deploys Envoy AI gateway
 
 **Backend Services (Deploy Second)**:
-5. `text-llm.yaml` - Exposes existing vLLM service for AI Gateway routing and registers backend services with AI Gateway controller
-6. `deepseek.yaml` - deploy and registers DeepSeek model as available backend
+ `model-backends.yaml` - Exposes existing vLLM service for AI Gateway routing and registers backend services with AI Gateway controller
 
 **Use-Case Specific (Deploy Third)**:
-- **Multi-Model Routing**: `multi-model-routing/ai-gateway-route.yaml` + `reference-grant.yaml`
+- **Multi-Model Routing**: `multi-model-routing/ai-gateway-route.yaml`
 
 ## Configuration
 
@@ -81,11 +79,6 @@ kubectl apply -f deepseek.yaml
 - **Gateway Name**: `ai-gateway`
 - **Namespace**: `default`
 - **Ports**: HTTP (80), HTTPS (443)
-
-### AI Models Namespace
-- **Namespace**: `ai-models`
-- **Purpose**: Isolate AI model services
-- **Access**: Enabled via ReferenceGrant
 
 ## Testing
 

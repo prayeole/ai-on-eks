@@ -10,11 +10,18 @@ spec:
     repoURL: docker.io/envoyproxy
     targetRevision: v1.5.3
     helm:
-      valueFiles:
-      - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
-  - repoURL: https://github.com/awslabs/ai-on-eks
-    targetRevision: HEAD
-    ref: VALUES
+      valuesObject:
+        config:
+          envoyGateway:
+            extensionApis:
+              enableBackend: true
+            provider:
+              type: Kubernetes
+      # valueFiles:
+      # - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
+  # - repoURL: https://github.com/awslabs/ai-on-eks
+  #   targetRevision: HEAD
+  #   ref: VALUES
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
