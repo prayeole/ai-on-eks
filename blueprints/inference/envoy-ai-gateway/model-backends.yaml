@@ -2,30 +2,6 @@
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: Backend
 metadata:
-  name: llama-backend
-  namespace: default
-spec:
-  endpoints:
-    - fqdn:
-        hostname: llama-backend.default.svc.cluster.local
-        port: 8000
----
-apiVersion: aigateway.envoyproxy.io/v1alpha1
-kind: AIServiceBackend
-metadata:
-  name: llama
-  namespace: default
-spec:
-  backendRef:
-    name: llama-backend
-    kind: Backend
-    group: gateway.envoyproxy.io
-  schema:
-    name: OpenAI
----
-apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: Backend
-metadata:
   name: gpt-oss-backend
   namespace: default
 spec:
@@ -42,6 +18,30 @@ metadata:
 spec:
   backendRef:
     name: gpt-oss-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: OpenAI
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: qwen3-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: qwen3.default.svc.cluster.local
+        port: 8000
+---
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: qwen3
+  namespace: default
+spec:
+  backendRef:
+    name: qwen3-backend
     kind: Backend
     group: gateway.envoyproxy.io
   schema:

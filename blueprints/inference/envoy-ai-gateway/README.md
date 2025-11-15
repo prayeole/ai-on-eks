@@ -1,6 +1,6 @@
 # Envoy AI Gateway Blueprint
 
-This blueprint demonstrates how to deploy and configure Envoy AI Gateway v0.3.0 on Amazon EKS for intelligent routing and management of AI/ML workloads.
+This blueprint demonstrates how to deploy and configure Envoy AI Gateway on Amazon EKS for intelligent routing and management of AI/ML workloads.
 
 ## Overview
 
@@ -38,17 +38,21 @@ kubectl apply -f gateway.yaml
 # Step 2: Create a Kubernetes secret with your Hugging Face token
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
 
-# Step 2: Deploy gpt-oss-20b-vllm model using inference chart
-helm install text-llm . -f values-gpt-oss-20b-vllm.yaml \
-  --set nameOverride=text-llm \
-  --set fullnameOverride=text-llm \
-  --set inference.serviceName=text-llm
+# Step 3: Add and update helm chart repo
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-# Step 3: Deploy llama-32-1b-vllm model using inference chart
-helm install llama-backend . -f values-llama-32-1b-vllm.yaml \
-  --set nameOverride=llama-backend \
-  --set fullnameOverride=llama-backend \
-  --set inference.serviceName=llama-backend
+# Step 4: Deploy gpt-oss-20b-vllm model using inference chart
+helm install qwen3-1.7b ../inference-charts/. -f ../inference-charts/values-qwen3-1.7b-vllm.yaml \
+  --set nameOverride=qwen3 \
+  --set fullnameOverride=qwen3 \
+  --set inference.serviceName=qwen3
+
+# Step 5: Deploy llama-32-1b-vllm model using inference chart
+helm install gpt-oss ../inference-charts/. -f ../inference-charts/values-gpt-oss-20b-vllm.yaml \
+  --set nameOverride=gpt-oss \
+  --set fullnameOverride=gpt-oss \
+  --set inference.serviceName=gpt-oss
 
 ## Use-Cases
 
@@ -58,7 +62,7 @@ helm install llama-backend . -f values-llama-32-1b-vllm.yaml \
 **Features**:
 - Header-based routing using `x-ai-eg-model`
 - Support for self-hosted models
-- Real AI model integration with OpenAI GPT OSS 20B, Llama 3B
+- Real AI model integration with OpenAI GPT OSS 20B, Qwen3-1.7B
 - Auto-detecting test client
 
 ### Resource Dependencies & Purpose
@@ -93,7 +97,7 @@ Each use-case includes a Python test client (`client.py`) that:
 # Test multi-model routing
 cd multi-model-routing/
 python3 client.py
-
+```
 
 ## Monitoring
 
