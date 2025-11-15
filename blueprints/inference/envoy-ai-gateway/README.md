@@ -42,14 +42,14 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
-# Step 4: Deploy gpt-oss-20b-vllm model using inference chart
-helm install qwen3-1.7b ../inference-charts/. -f ../inference-charts/values-qwen3-1.7b-vllm.yaml \
+# Step 4: Deploy qwen3 model using inference chart
+helm install qwen3-1.7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-qwen3-1.7b-vllm.yaml \
   --set nameOverride=qwen3 \
   --set fullnameOverride=qwen3 \
   --set inference.serviceName=qwen3
 
-# Step 5: Deploy llama-32-1b-vllm model using inference chart
-helm install gpt-oss ../inference-charts/. -f ../inference-charts/values-gpt-oss-20b-vllm.yaml \
+# Step 5: Deploy gpt oss model using inference chart
+helm install gpt-oss ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-gpt-oss-20b-vllm.yaml \
   --set nameOverride=gpt-oss \
   --set fullnameOverride=gpt-oss \
   --set inference.serviceName=gpt-oss
