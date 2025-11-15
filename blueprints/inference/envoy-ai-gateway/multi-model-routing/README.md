@@ -46,7 +46,7 @@ curl -X POST http://$GATEWAY_URL/v1/chat/completions \
 
 - **404 errors**: Check if `ai-gateway-route.yaml` is applied
 - **Model not responding**: Verify backend services are running
-- **Model invoke timing out**: Verify if envoy default AI gateway deployment has scaled up and running at least 1 pod. If not, restart the envoy AI gateway deployment. 
+- **Model invoke timing out**: Verify if envoy default AI gateway deployment has scaled up and running at least 1 pod. If not, restart the envoy AI gateway deployment.
 ```bash
 kubectl rollout restart deployment ai-gateway-controller -n envoy-ai-gateway-system
 ```
