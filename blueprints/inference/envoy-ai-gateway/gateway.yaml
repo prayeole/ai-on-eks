@@ -22,6 +22,8 @@ spec:
   provider:
     type: Kubernetes
     kubernetes:
+      envoyServiceAccount:
+        name: ai-gateway-dataplane-aws
       envoyService:
         annotations:
           service.beta.kubernetes.io/aws-load-balancer-type: external

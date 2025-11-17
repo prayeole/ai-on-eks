@@ -13,13 +13,13 @@ kubectl apply -f gateway.yaml
 ## Deploy
 
 ```bash
-kubectl apply -f ai-gateway-route.yaml
+kubectl apply -f multi-model-routing/ai-gateway-route.yaml
 ```
 
 ## Test
 
 ```bash
-python3 client.py
+python3 multi-model-routing/client.py
 ```
 
 ## Manual Testing

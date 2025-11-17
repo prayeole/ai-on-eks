@@ -78,7 +78,7 @@ def main():
     # Test essential models
     models_to_test = [
         ("openai/gpt-oss-20b", "OpenAI GPT OSS 20B vLLM"),
-        ("NousResearch/Llama-3.2-1B", "Llama 32 1B vLLM")
+        ("Qwen/Qwen3-1.7B", "Qwen3 1.7B vLLM")
     ]
 
     for model_name, test_name in models_to_test:
