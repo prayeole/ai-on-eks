@@ -130,13 +130,12 @@ benchmark:
 
   # Resource allocation
   resources:
-    main:
-      requests:
-        cpu: "2"
-        memory: "4Gi"
-      limits:
-        cpu: "4"
-        memory: "8Gi"
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
 ```
 
 Deploy with custom values:

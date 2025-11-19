@@ -37,10 +37,9 @@ benchmark:
 
   # Resource allocation
   resources:
-    main:
-      requests:
-        cpu: "4"
-        memory: "8Gi"
+    requests:
+      cpu: "4"
+      memory: "8Gi"
 
   # Pod affinity customization
   affinity:
