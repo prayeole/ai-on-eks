@@ -5,12 +5,68 @@ sidebar_label: Scenario 2 - Saturation Testing
 # SCENARIO 2: Saturation Testing
 
 ## When to use this scenario:
-Deploy saturation testing when you need to determine maximum sustainable throughput before performance degrades—critical for capacity planning, autoscaling thresholds, and preventing production overload. This multi-stage approach methodically increases load so you can observe exactly where your system transitions from healthy operation to overload, answering "how many requests per second can we handle while maintaining acceptable latency?" Use this before launches, after infrastructure changes, or when setting monitoring alerts and autoscaling policies.
+Use multi-stage saturation testing when you need to empirically determine your system's maximum sustainable throughput before performance degrades. This is critical before production launch, when planning capacity, or setting autoscaling thresholds, as it answers "what's the highest QPS we can reliably handle?" Through systematic load increases, you'll observe where latency starts climbing or errors appear, revealing your true capacity ceiling that marketing materials and theoretical calculations often overestimate.
 
-## Configuration:
+## Deployment
+
+### Using Helm Chart (Recommended)
 
 ```bash
-cat > 02-scenario-saturation.yaml <<'EOF'
+git clone https://github.com/awslabs/ai-on-eks-charts.git
+cd ai-on-eks-charts
+
+helm install saturation-test ./charts/benchmark-charts \
+  --set benchmark.scenario=saturation \
+  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=mistral-7b \
+  --namespace benchmarking --create-namespace
+
+# Monitor progress through multiple stages
+kubectl logs -n benchmarking -l benchmark.scenario=saturation -f
+```
+
+### Customizing Load Stages
+
+Adjust the QPS stages to match your expected capacity:
+
+```yaml
+# custom-saturation.yaml
+benchmark:
+  scenario: saturation
+  target:
+    baseUrl: http://your-model:8000
+  scenarios:
+    saturation:
+      load:
+        stages:
+          - rate: 10
+            duration: 180
+          - rate: 25
+            duration: 180
+          - rate: 50
+            duration: 180
+          - rate: 75
+            duration: 180
+```
+
+```bash
+helm install saturation-test ./charts/benchmark-charts -f custom-saturation.yaml -n benchmarking
+```
+
+## Key Configuration:
+
+* Variable synthetic data distributions (mean 512/256 tokens, realistic variance)
+* Multi-stage constant load: 5 → 10 → 20 → 40 QPS (3 minutes each)
+* Streaming enabled
+* 8 concurrent workers
+
+## Understanding the results:
+Plot P50, P95, and P99 latency across all stages to visually identify the saturation point—look for the stage where percentiles diverge sharply or error rates spike. The "knee" in your latency curve (where it hockey-sticks upward) indicates your practical capacity limit, not the theoretical maximum QPS your system handled. Set production targets 20-30% below this saturation point to maintain headroom for traffic spikes; if saturation occurs at 35 QPS, target 24-28 QPS sustained load. Compare different model configurations or hardware setups using identical test stages to make objective scaling decisions backed by data rather than vendor claims.
+
+<details>
+<summary><strong>Alternative: Raw Kubernetes YAML</strong></summary>
+
+```yaml
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -68,22 +124,14 @@ kind: Job
 metadata:
   name: inference-perf-saturation
   namespace: benchmarking
-  labels:
-    app: inference-perf
-    scenario: saturation
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 3600
   template:
-    metadata:
-      labels:
-        app: inference-perf
-        scenario: saturation
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -98,10 +146,7 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          echo "Installing dependencies for Mistral models..."
           pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-          echo "Dependencies installed successfully"
-          echo "Starting Saturation Test..."
           inference-perf --config_file /workspace/config.yml
         volumeMounts:
         - name: config
@@ -119,16 +164,6 @@ spec:
       - name: config
         configMap:
           name: inference-perf-saturation
-EOF
-
-kubectl apply -f 02-scenario-saturation.yaml
 ```
 
-## Key Configuration:
-
-* Fixed-length synthetic data (512 input / 128 output tokens)
-* Stepped constant load: 5, 10, 20, 40 QPS (180s each stage)
-* Streaming enabled
-
-## Understanding the results:
-Look for the inflection point where TTFT suddenly spikes (2-3x baseline), TPS plateaus or drops, and error rates appear—this is your saturation point. In early stages, TTFT should stay near baseline with TPS increasing linearly; as you approach saturation, queueing causes latency to climb exponentially while throughput gains diminish. Set your production target at 50-70% of saturation (if saturating at 20 QPS, operate at 10-14 QPS) to maintain headroom for traffic bursts and ensure predictable latency. Pay attention to degradation patterns: gradual latency increases indicate good queue management, while sudden failures suggest poor overload handling.
+</details>

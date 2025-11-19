@@ -51,8 +51,26 @@ Validate production-ready performance using actual user prompts and query patter
 - Comparing model versions
 - Need authentic performance guarantees
 
+## Prerequisites
+
+All scenarios use the [AI on EKS Benchmark Helm Chart](https://github.com/awslabs/ai-on-eks-charts/tree/main/charts/benchmark-charts) for deployment. Before proceeding:
+
+1. **Install Helm** (version 3.x or later)
+2. **Clone the charts repository:**
+   ```bash
+   git clone https://github.com/awslabs/ai-on-eks-charts.git
+   cd ai-on-eks-charts
+   ```
+3. **Configure kubectl** access to your EKS cluster
+4. **Deploy your inference service** (e.g., vLLM serving your model)
+
 ## Implementation Notes
 
-All scenarios in this section use **runtime dependency installation** (Approach A) for simplicity and flexibility. Dependencies are installed in the main container at startup, not through init-containers.
+Each scenario below demonstrates deployment using the **Helm chart** as the recommended method. The chart provides:
 
-For production deployments requiring faster startup times, consider building a custom container image with pre-installed dependencies as described in the [Complete Deployment Example](../3-benchmarking-with-inference-perf/3-complete-deployment-example-guide#approach-b-custom-container-image-advanced).
+- **Consistent configuration** across all test scenarios
+- **Values-driven customization** for specific use cases
+- **Production-ready defaults** with pod affinity and resource management
+- **Easy maintenance** with centralized configuration
+
+For educational purposes or custom deployments, each scenario also includes a collapsible section with raw Kubernetes YAML showing the complete manifest structure. This alternative approach uses **runtime dependency installation** where dependencies are installed in the main container at startup.

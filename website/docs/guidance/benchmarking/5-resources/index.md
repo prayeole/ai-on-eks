@@ -4,7 +4,59 @@ sidebar_label: Resources
 
 # Resources
 
-## Custom Container with SentencePiece
+## Helm Chart Repository
+
+The official benchmark charts are maintained in the [AI on EKS Charts repository](https://github.com/awslabs/ai-on-eks-charts/tree/main/charts/benchmark-charts). This repository contains:
+
+- **values.yaml**: Complete configuration reference with all available options
+- **templates/**: Kubernetes resource templates for jobs, configmaps, and service accounts
+- **scenarios/**: Pre-configured scenario definitions (baseline, saturation, sweep, production)
+- **README.md**: Detailed usage instructions and examples
+
+### Customizing via values.yaml
+
+Create a custom values file to override defaults:
+
+```yaml
+# custom-benchmark.yaml
+benchmark:
+  scenario: saturation
+  target:
+    baseUrl: http://your-model:8000
+    modelName: your-model-name
+
+  # Override scenario-specific settings
+  scenarios:
+    saturation:
+      load:
+        stages:
+          - rate: 10
+            duration: 300
+          - rate: 50
+            duration: 300
+
+  # Resource allocation
+  resources:
+    main:
+      requests:
+        cpu: "4"
+        memory: "8Gi"
+
+  # Pod affinity customization
+  affinity:
+    enabled: true
+    targetLabels:
+      app: your-inference-service
+```
+
+Deploy with custom values:
+```bash
+helm install my-benchmark ./charts/benchmark-charts -f custom-benchmark.yaml -n benchmarking
+```
+
+## Alternative: Custom Container with SentencePiece
+
+For custom deployments outside the Helm chart, you can build a container image with pre-installed dependencies:
 
 ```bash
 # Create a custom Dockerfile
@@ -27,7 +79,9 @@ kubectl patch job inference-perf-run -n benchmarking \
   -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"<your-registry>/inference-perf:v0.2.0-sentencepiece"}]'
 ```
 
-## Deployment file
+## Alternative: Complete Kubernetes Manifest
+
+For manual deployments or educational purposes, here's a complete YAML manifest with runtime dependency installation:
 
 ```bash
 cat > inference-perf-fixed.yaml <<'EOF'

@@ -84,11 +84,82 @@ aws eks create-pod-identity-association \
   --role-arn arn:aws:iam::ACCOUNT_ID:role/InferencePerfRole
 ```
 
-## STEP 2: Deploy Kubernetes Resources
+## STEP 2: Deploy Benchmark Resources
 
-This single manifest creates everything you need: namespace, service account, configuration, and the benchmark job itself.
+### Option A: Using Helm Chart (Recommended)
 
-### Handling Model Dependencies
+The [AI on EKS Benchmark Helm Chart](https://github.com/awslabs/ai-on-eks-charts/tree/main/charts/benchmark-charts) provides a production-ready deployment with simplified configuration management.
+
+**Install the benchmark:**
+
+```bash
+# Clone the charts repository
+git clone https://github.com/awslabs/ai-on-eks-charts.git
+cd ai-on-eks-charts
+
+# Deploy a production simulation test
+helm install production-test ./charts/benchmark-charts \
+  --set benchmark.scenario=production \
+  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=mistral-7b \
+  --namespace benchmarking --create-namespace
+```
+
+**Customize with your own values:**
+
+```yaml
+# custom-benchmark.yaml
+benchmark:
+  scenario: production
+  target:
+    baseUrl: http://mistral-vllm.vllm-benchmark:8000
+    modelName: mistral-7b
+
+  # S3 storage configuration
+  storage:
+    s3:
+      enabled: true
+      bucketName: inference-perf-results
+      path: "inference-perf/{timestamp}"
+
+  # Pod affinity for co-location
+  affinity:
+    enabled: true
+    targetLabels:
+      app: mistral-vllm
+
+  # Resource allocation
+  resources:
+    main:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+```
+
+Deploy with custom values:
+```bash
+helm install production-test ./charts/benchmark-charts \
+  -f custom-benchmark.yaml \
+  --namespace benchmarking --create-namespace
+```
+
+**Benefits of Helm approach:**
+- **Simplified configuration** through values.yaml instead of verbose YAML
+- **Pre-configured scenarios** (baseline, saturation, sweep, production)
+- **Consistent defaults** for pod affinity, resources, and dependencies
+- **Easy upgrades** and rollbacks with Helm versioning
+
+### Option B: Manual Kubernetes YAML (Educational)
+
+For learning purposes or highly customized deployments, you can deploy directly with Kubernetes manifests. This approach provides full transparency of all resources.
+
+<details>
+<summary><strong>Click to expand: Manual YAML deployment instructions</strong></summary>
+
+#### Handling Model Dependencies
 
 Some models require additional Python packages that aren't included in the base inference-perf container. The most common requirement is `sentencepiece` for Mistral and Llama models.
 
@@ -316,30 +387,38 @@ EOF
 
 **💡 Tip:** The resource values shown are starting points. For higher concurrency levels or longer test durations, monitor pod resource usage with `kubectl top pod -n benchmarking` and adjust accordingly.
 
+</details>
 
-**Future Enhancement:** A Helm chart template is planned for simplified deployment (similar to the [guidellm template pattern](https://github.com/omrishiv/ai-on-eks/blob/begin-inference-guidance/blueprints/inference/inference-charts/templates/guidellm-pod.yaml)) to streamline configuration management and reduce deployment complexity. The current YAML approach provides full transparency for learning purposes. Contributions welcome!
+---
 
 ## STEP 3: Deploy and Monitor
 
-Save the manifest above as `inference-perf-complete.yaml` and deploy it.
+### For Helm Deployments:
+
+```bash
+# Monitor job progress
+kubectl get jobs -n benchmarking -w
+
+# Follow logs to see benchmark progress
+kubectl logs -n benchmarking -l app.kubernetes.io/component=benchmark -f
+
+# Check Helm release status
+helm status production-test -n benchmarking
+```
+
+### For Manual YAML Deployments:
+
+Save the manifests from Option B above as `inference-perf-complete.yaml` and deploy:
 
 ```bash
 # Deploy all resources
-
 kubectl apply -f inference-perf-complete.yaml
 
-
-
 # Monitor job progress
-
 kubectl get jobs -n benchmarking -w
 
-
-
 # Follow logs to see benchmark progress
-
 kubectl logs -n benchmarking -l app=inference-perf -f
-
 ```
 
 ## STEP 4: Retrieve Results

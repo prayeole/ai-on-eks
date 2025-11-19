@@ -7,10 +7,68 @@ sidebar_label: Scenario 4 - Production Simulation
 ## When to use this scenario:
 Deploy production simulation as your final validation before launch—it replicates real-world traffic chaos with variable request sizes and Poisson (bursty) arrivals instead of uniform load. Use this after optimizing based on baseline and saturation tests to answer "will users have a good experience under realistic conditions?" Real production traffic doesn't consist of identical 512-token requests arriving like clockwork; users send varying lengths at random intervals, and this test validates your system handles that heterogeneity while maintaining acceptable percentile latencies for SLA setting.
 
-## Configuration:
+## Deployment
+
+### Using Helm Chart (Recommended)
 
 ```bash
-cat > 04-scenario-production.yaml <<'EOF'
+git clone https://github.com/awslabs/ai-on-eks-charts.git
+cd ai-on-eks-charts
+
+helm install production-sim ./charts/benchmark-charts \
+  --set benchmark.scenario=production \
+  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=mistral-7b \
+  --namespace benchmarking --create-namespace
+
+# Monitor progress - expect variable latency due to bursty traffic
+kubectl logs -n benchmarking -l benchmark.scenario=production -f
+```
+
+### Customizing Traffic Patterns
+
+Adjust burst rate and variability:
+
+```yaml
+# custom-production.yaml
+benchmark:
+  scenario: production
+  target:
+    baseUrl: http://your-model:8000
+  scenarios:
+    production:
+      data:
+        input:
+          mean: 2048          # Longer average prompts
+          stdDev: 1024        # Higher variability
+          min: 256
+          max: 8192
+      load:
+        type: poisson         # Keeps bursty arrivals
+        stages:
+          - rate: 20          # Higher target QPS
+            duration: 900     # Longer test (15 min)
+```
+
+```bash
+helm install production-sim ./charts/benchmark-charts -f custom-production.yaml -n benchmarking
+```
+
+## Key Configuration:
+
+* Variable synthetic data (Gaussian distributions for input/output)
+* Wide token distributions (mean 1024/512 with high variance)
+* Poisson (bursty) arrivals instead of uniform load
+* Streaming enabled
+* 8 concurrent workers
+
+## Understanding the results:
+Focus exclusively on P99 and P95 latency—these percentiles represent the worst experience that 99% and 95% of users encounter, unlike averages that hide poor tail performance. The wide input/output distributions create natural variability, so expect higher variance than baseline tests; this is normal and reflects production reality. Poisson bursts cause temporary queue buildup even at sustainable average rates, so if P99 is significantly worse than uniform-load testing suggested, you need more headroom than expected. Set SLAs based on these realistic percentiles, not averages—if P99 TTFT is 1200ms, don't promise sub-second latency even though mean might be 400ms.
+
+<details>
+<summary><strong>Alternative: Raw Kubernetes YAML</strong></summary>
+
+```yaml
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -62,22 +120,14 @@ kind: Job
 metadata:
   name: inference-perf-production
   namespace: benchmarking
-  labels:
-    app: inference-perf
-    scenario: production
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 3600
   template:
-    metadata:
-      labels:
-        app: inference-perf
-        scenario: production
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -92,10 +142,7 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          echo "Installing dependencies for Mistral models..."
           pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-          echo "Dependencies installed successfully"
-          echo "Starting Production Simulation Test..."
           inference-perf --config_file /workspace/config.yml
         volumeMounts:
         - name: config
@@ -113,16 +160,6 @@ spec:
       - name: config
         configMap:
           name: inference-perf-production
-EOF
-
-kubectl apply -f 04-scenario-production.yaml
 ```
 
-## Key Configuration:
-
-* Variable synthetic data (Gaussian distributions for input/output)
-* Poisson (bursty) arrivals instead of uniform load
-* Streaming enabled
-
-## Understanding the results:
-Focus exclusively on P99 and P95 latency—these percentiles represent the worst experience that 99% and 95% of users encounter, unlike averages that hide poor tail performance. The wide input/output distributions create natural variability, so expect higher variance than baseline tests; this is normal and reflects production reality. Poisson bursts cause temporary queue buildup even at sustainable average rates, so if P99 is significantly worse than uniform-load testing suggested, you need more headroom than expected. Set SLAs based on these realistic percentiles, not averages—if P99 TTFT is 1200ms, don't promise sub-second latency even though mean might be 400ms.
+</details>

@@ -7,10 +7,75 @@ sidebar_label: Scenario 1 - Baseline Performance
 ## When to use this scenario:
 Use baseline testing when establishing your system's optimal performance with zero contention—essentially taking your infrastructure's vital signs. This is your starting point before any capacity planning or optimization work, ideal when you've just deployed a new endpoint or made infrastructure changes. It answers "what's the best performance this system can deliver?" without queueing or resource competition, giving you a clean reference point for all future testing.
 
-## Configuration:
+## Deployment
+
+### Using Helm Chart (Recommended)
 
 ```bash
-cat > 01-scenario-baseline.yaml <<'EOF'
+# Install from GitHub (requires git clone)
+git clone https://github.com/awslabs/ai-on-eks-charts.git
+cd ai-on-eks-charts
+
+helm install baseline-test ./charts/benchmark-charts \
+  --set benchmark.scenario=baseline \
+  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=mistral-7b \
+  --namespace benchmarking --create-namespace
+
+# Monitor progress
+kubectl logs -n benchmarking -l benchmark.scenario=baseline -f
+```
+
+### Customizing Configuration
+
+Override specific values using `--set` or a custom values file:
+
+```bash
+# Adjust test duration or resources
+helm install baseline-test ./charts/benchmark-charts \
+  --set benchmark.scenario=baseline \
+  --set benchmark.target.baseUrl=http://your-model:8000 \
+  --set benchmark.scenarios.baseline.load.stages[0].duration=600 \
+  --set benchmark.resources.main.requests.cpu=4 \
+  --namespace benchmarking
+```
+
+Or create a custom `my-values.yaml`:
+
+```yaml
+benchmark:
+  scenario: baseline
+  target:
+    baseUrl: http://your-model:8000
+    modelName: your-model-name
+  scenarios:
+    baseline:
+      load:
+        stages:
+          - rate: 1
+            duration: 600  # Longer test
+```
+
+```bash
+helm install baseline-test ./charts/benchmark-charts -f my-values.yaml -n benchmarking
+```
+
+## Key Configuration:
+
+* Fixed-length synthetic data (512 input / 128 output tokens)
+* Constant load at 1 QPS for 300 seconds
+* Streaming enabled
+* Pod affinity ensures co-location with inference pods
+
+## Understanding the results:
+Your TTFT and ITL at 1 QPS represent the theoretical minimum latency, the absolute fastest your system can respond with zero queueing or contention. If baseline TTFT is 800ms, users will never see faster response times regardless of optimizations, like adding replicas, load balancers, or autoscaling, because these improve **throughput and concurrency**, not single-request speed. Focus on these metrics as your performance floor: schedule delay should be near zero (<10ms), and any deviation indicates the test runner itself needs more resources. Compare baseline numbers against your Service Level Agreement (SLA) targets—if baseline performance doesn't meet requirements, you need model/hardware optimization before worrying about scale, as adding capacity won't improve fundamental inference speed.
+
+<details>
+<summary><strong>Alternative: Raw Kubernetes YAML</strong> (for educational purposes or custom deployments)</summary>
+
+If you prefer not to use Helm or need to customize beyond values, here's the complete Kubernetes manifest:
+
+```yaml
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -62,22 +127,14 @@ kind: Job
 metadata:
   name: inference-perf-baseline
   namespace: benchmarking
-  labels:
-    app: inference-perf
-    scenario: baseline
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 3600
   template:
-    metadata:
-      labels:
-        app: inference-perf
-        scenario: baseline
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -92,10 +149,7 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          echo "Installing dependencies for Mistral models..."
           pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-          echo "Dependencies installed successfully"
-          echo "Starting Baseline Performance Test..."
           inference-perf --config_file /workspace/config.yml
         volumeMounts:
         - name: config
@@ -113,16 +167,8 @@ spec:
       - name: config
         configMap:
           name: inference-perf-baseline
-EOF
-
-kubectl apply -f 01-scenario-baseline.yaml
 ```
 
-## Key Configuration:
+Apply with: `kubectl apply -f 01-scenario-baseline.yaml`
 
-* Fixed-length synthetic data (512 input / 128 output tokens)
-* Constant load at 1 QPS for 300 seconds
-* Streaming enabled
-
-## Understanding the results:
-Your TTFT and ITL at 1 QPS represent the theoretical minimum latency, the absolute fastest your system can respond with zero queueing or contention. If baseline TTFT is 800ms, users will never see faster response times regardless of optimizations, like adding replicas, load balancers, or autoscaling, because these improve **throughput and concurrency**, not single-request speed. Focus on these metrics as your performance floor: schedule delay should be near zero (<10ms), and any deviation indicates the test runner itself needs more resources. Compare baseline numbers against your Service Level Agreement (SLA)  targets—if baseline performance doesn't meet requirements, you need model/hardware optimization before worrying about scale, as adding capacity won't improve fundamental inference speed.
+</details>

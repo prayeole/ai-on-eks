@@ -7,10 +7,63 @@ sidebar_label: Scenario 5 - Real Dataset Testing
 ## When to use this scenario:
 Use real dataset testing to validate production-ready performance with actual user prompts and query patterns. This is essential when your model is fine-tuned for specific conversation patterns, when comparing model versions with real-world performance guarantees, or when you need to tell stakeholders "this is how it performs on actual conversations, not theoretical data." The tradeoff is less control over distributions, but you gain authenticity and the ability to discover edge cases that synthetic data misses.
 
-## Configuration:
+## Deployment
+
+### Using Helm Chart (Recommended)
 
 ```bash
-cat > 05-scenario-sharegpt.yaml <<'EOF'
+git clone https://github.com/awslabs/ai-on-eks-charts.git
+cd ai-on-eks-charts
+
+# ShareGPT dataset testing uses same scenarios but with real data
+helm install sharegpt-test ./charts/benchmark-charts \
+  --set benchmark.scenario=baseline \
+  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=mistral-7b \
+  --namespace benchmarking --create-namespace
+
+# Monitor for natural conversation complexity patterns
+kubectl logs -n benchmarking -l app.kubernetes.io/component=benchmark -f
+```
+
+**Note:** Real dataset testing uses the same load patterns as scenarios 1-4, but with `data.type: shareGPT` instead of `data.type: synthetic`. You can apply real data to any scenario (baseline, saturation, sweep, or production).
+
+### Using Custom Dataset
+
+Provide your own conversation dataset:
+
+```yaml
+# custom-dataset.yaml
+benchmark:
+  scenario: saturation  # Or any scenario
+  target:
+    baseUrl: http://your-model:8000
+  # Override data configuration to use custom dataset
+  customData:
+    enabled: true
+    type: custom
+    path: /path/to/your/conversations.json
+    format: sharegpt  # or openai, alpaca, etc.
+```
+
+For custom datasets, you'll need to mount the data file into the benchmark pod using a ConfigMap or PersistentVolume.
+
+## Key Configuration:
+
+* ShareGPT real conversation dataset (varies by scenario choice)
+* Any load pattern (constant/poisson, depends on selected scenario)
+* Streaming enabled
+* Natural conversation complexity and length variance
+
+## Understanding the results:
+Real conversations reveal natural complexity patterns and edge cases absent from synthetic data—look for latency outliers that expose problematic conversation structures or phrasings causing slow processing. Compare real data performance against synthetic tests at similar QPS; significant degradation suggests real conversations are more complex than your synthetic parameters assumed, helping calibrate future synthetic tests. TTFT variability will be higher due to natural context length variance from multi-turn dialogues, and any consistent error patterns with specific conversation types reveal production vulnerabilities worth targeted optimization. Use these results as ground truth for stakeholder commitments—base your "P99 latency will be X" promises on real data, not synthetic.
+
+**⚠️ Critical:** Regularly update your test dataset with recent anonymized production samples to prevent drift. If your benchmark dataset is 6 months old but user behavior has shifted to longer prompts, your performance predictions will be inaccurate.
+
+<details>
+<summary><strong>Alternative: Raw Kubernetes YAML</strong></summary>
+
+```yaml
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -24,7 +77,7 @@ data:
       streaming: true
 
     data:
-      type: shareGPT
+      type: shareGPT  # Real conversation data
 
     load:
       type: constant
@@ -52,22 +105,14 @@ kind: Job
 metadata:
   name: inference-perf-sharegpt
   namespace: benchmarking
-  labels:
-    app: inference-perf
-    scenario: sharegpt
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 3600
   template:
-    metadata:
-      labels:
-        app: inference-perf
-        scenario: sharegpt
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -82,10 +127,7 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          echo "Installing dependencies for Mistral models..."
           pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-          echo "Dependencies installed successfully"
-          echo "Starting ShareGPT Real Data Test..."
           inference-perf --config_file /workspace/config.yml
         volumeMounts:
         - name: config
@@ -103,18 +145,6 @@ spec:
       - name: config
         configMap:
           name: inference-perf-sharegpt
-EOF
-
-kubectl apply -f 05-scenario-sharegpt.yaml
 ```
 
-## Key Configuration:
-
-* ShareGPT real conversation dataset
-* Constant load at 10 QPS for 300 seconds
-* Streaming enabled
-
-## Understanding the results:
-Real conversations reveal natural complexity patterns and edge cases absent from synthetic data—look for latency outliers that expose problematic conversation structures or phrasings causing slow processing. Compare real data performance against synthetic tests at similar QPS; significant degradation suggests real conversations are more complex than your synthetic parameters assumed, helping calibrate future synthetic tests. TTFT variability will be higher due to natural context length variance from multi-turn dialogues, and any consistent error patterns with specific conversation types reveal production vulnerabilities worth targeted optimization. Use these results as ground truth for stakeholder commitments—base your "P99 latency will be X" promises on real data, not synthetic.
-
-**⚠️ Critical:** Regularly update your test dataset with recent anonymized production samples to prevent drift. If your benchmark dataset is 6 months old but user behavior has shifted to longer prompts, your performance predictions will be inaccurate.
+</details>
