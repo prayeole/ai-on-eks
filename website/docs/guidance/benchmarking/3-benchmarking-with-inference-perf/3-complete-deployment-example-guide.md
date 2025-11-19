@@ -6,28 +6,35 @@ sidebar_label: Complete Deployment Example
 
 This example demonstrates a production-ready deployment with S3 storage, realistic load testing, and proper AWS integration. Follow these steps to deploy your benchmark.
 
-### STEP 0: ENVIRONMENT SETUP (OPTIONAL)
+## STEP 0: ENVIRONMENT SETUP (OPTIONAL)
 
 Choose your deployment path:
 
-Path A (Recommended): Use ai-on-eks blueprint
+### Path A (Recommended): Use ai-on-eks blueprint
 
 * Deploys kube-prometheus-stack automatically
 * Fixed Prometheus URL: http://kube-prometheus-stack-prometheus.monitoring:9090
-* Follow: https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster 
+* Follow: https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster
 
-Path B:  Existing EKS Cluster
+### Path B:  Existing EKS Cluster
 
 If you have an existing cluster, ensure these prerequisites:
 
 * EKS cluster with Kubernetes 1.28+
+* GPU nodes (g5.xlarge or larger) with NVIDIA drivers installed
+* Karpenter (optional but recommended for autoscaling)
 * Pod Identity or IRSA configured for S3 access
 * kubectl configured with cluster access
-* optional Prometheus pre-deployed
+* MUST have Prometheus pre-deployed
+* Metrics collection is OPTIONAL for benchmarking
+* You must know your Prometheus service name and namespace
+* Example: http://&lt;your-prometheus-service&gt;.&lt;namespace&gt;:9090
 
-### STEP 1:  AWS Storage Setup (Using S3 - Recommendation)
+## STEP 1:  AWS Storage Setup (Using S3 - Recommendation)
 
-Note: If you deployed your cluster using the ai-on-eks inference-ready-cluster blueprint, the EKS Pod Identity Agent addon is already installed. You can skip the addon installation command below and proceed directly to creating the IAM role and pod identity association.
+**Note:** If you deployed your cluster using the ai-on-eks inference-ready-cluster blueprint, the EKS Pod Identity Agent addon is already installed. You can skip the addon installation command below and proceed directly to creating the IAM role and pod identity association.
+
+Set up AWS credentials so your benchmark pod can write results to S3 without hardcoded credentials.
 
 ```bash
 # Install EKS Pod Identity Agent (already deployed on the blueprint reference - https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster)
@@ -55,13 +62,18 @@ cat > trust-policy.json <<EOF
 }
 EOF
 
+
 aws iam create-role \
   --role-name InferencePerfRole \
   --assume-role-policy-document file://trust-policy.json
 
+
+
 aws iam attach-role-policy \
   --role-name InferencePerfRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+
 
 # Link the role to your Kubernetes service account
 
@@ -72,18 +84,17 @@ aws eks create-pod-identity-association \
   --role-arn arn:aws:iam::ACCOUNT_ID:role/InferencePerfRole
 ```
 
-### STEP 2: Deploy Kubernetes Resources
+## STEP 2: Deploy Kubernetes Resources
 
 This single manifest creates everything you need: namespace, service account, configuration, and the benchmark job itself.
 
-#### Handling Model Dependencies
+### Handling Model Dependencies
 
-Some models require additional Python packages that aren’t included in the base inference-perf container. The most common requirement is sentencepiece for Mistral and Llama models.
+Some models require additional Python packages that aren't included in the base inference-perf container. The most common requirement is `sentencepiece` for Mistral and Llama models.
 
-##### Two approaches:
+**Two approaches:**
 
-###### Approach A: Runtime Installation (Recommended - Simple)
-
+#### Approach A: Runtime Installation (Recommended - Simple)
 Install dependencies as part of the main container startup before running the benchmark:
 
 ```yaml
@@ -97,9 +108,9 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
-      
+
       ...
-      
+
       containers:
       - name: inference-perf
         image: quay.io/inference-perf/inference-perf:v0.2.0
@@ -107,24 +118,59 @@ spec:
         args:
           - |
             echo "Installing dependencies..."
-            pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5
+            pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
             echo "Dependencies installed successfully"
             echo "Starting inference-perf..."
             inference-perf --config_file /workspace/config.yml
+
 ```
 
-###### Approach B: Custom Container Image (Advanced)
-
+#### Approach B: Custom Container Image (Advanced)
 Build a custom image with dependencies pre-installed:
 
-```yaml
+```dockerfile
 FROM quay.io/inference-perf/inference-perf:v0.2.0
+
 RUN pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
 ```
 
-#### Create HuggingFace Token Secret (Optional but Recommended)
+#### When to use each approach:
+
+* Use **Approach A** for quick testing and flexibility
+* Use **Approach B** for production repeatability and faster startup
+
+### Create Namespace and Service Account
+
+```bash
+cat <<EOF | kubectl apply -f -
+# Namespace for benchmark workloads
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: benchmarking
+
+---
+# Service Account (linked to AWS IAM via Pod Identity)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inference-perf-sa
+  namespace: benchmarking
+EOF
+```
+
+
+
+### Create HuggingFace Token Secret (Optional but Recommended)
 
 If your model requires authentication to download tokenizers from HuggingFace, create a secret using the command below. This approach is more secure than defining secrets in YAML files that might accidentally be committed to version control.
+
+**Step 1: Obtain your HuggingFace token**
+
+* Go to https://huggingface.co/settings/tokens
+* Create a read token if you don't have one
+
+**Step 2: Create the secret**
 
 ```bash
 kubectl create secret generic hf-token \
@@ -132,9 +178,19 @@ kubectl create secret generic hf-token \
   --namespace=benchmarking
 ```
 
-#### Create Job & configMap
 
-```yaml
+**Step 3: Verify the secret was created**
+
+```bash
+kubectl get secret hf-token -n benchmarking
+```
+
+
+**⚠️ Security Note:** Never commit secrets to Git repositories. Always use imperative commands or external secret management tools (AWS Secrets Manager, HashiCorp Vault, etc.) for production deployments.
+
+### Create ConfigMap and Job
+
+```bash
 cat <<EOF | kubectl apply -f -
 # Benchmark Configuration
 apiVersion: v1
@@ -171,14 +227,19 @@ data:
     # Model Server
     server:
       type: vllm
-      model_name: Qwen/Qwen2.5-Omni-7B
-      base_url: http://vllm-service.default:8000
+      model_name: mistral-7b
+      base_url: http://mistral-vllm.vllm-benchmark:8000
       ignore_eos: true
+
+    # Tokenizer
+    tokenizer:
+      pretrained_model_name_or_path: mistralai/Mistral-7B-Instruct-v0.3
+
     # Storage - Results automatically saved to S3
     storage:
       simple_storage_service:
         bucket_name: "inference-perf-results"
-        path: "inference-perf/results"
+        path: "inference-perf/{timestamp}"
     # Optional: Prometheus metrics collection
     # metrics:
     #   type: prometheus
@@ -207,49 +268,32 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
-      
+
       # Co-locate benchmark with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app.kubernetes.io/component: mistral-vllm
-            topologyKey: topology.kubernetes.io/zone     
-      
-      # InitContainer for model dependencies
-      initContainers:
-      - name: install-deps
+                app: mistral-vllm
+            topologyKey: topology.kubernetes.io/zone
+
+      containers:
+      - name: inference-perf
         image: quay.io/inference-perf/inference-perf:v0.2.0
         command: ["/bin/sh", "-c"]
         args:
           - |
-            echo "Installing dependencies for Mistral/Llama models..."
-            pip install --target=/deps --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-            echo "Dependencies installed"
-        volumeMounts:
-          - name: python-deps
-            mountPath: /deps
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "512Mi"
-      containers:
-      - name: inference-perf
-        image: quay.io/inference-perf/inference-perf:v0.2.0
-        command: ["inference-perf"]
-        args:
-          - "--config_file"
-          - "/workspace/config.yml"
+            echo "Installing dependencies..."
+            pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
+            echo "Dependencies installed successfully"
+            echo "Starting inference-perf..."
+            inference-perf --config_file /workspace/config.yml
         volumeMounts:
           - name: config
             mountPath: /workspace/config.yml
             subPath: config.yml
-          - name: python-deps
-            mountPath: /deps
         env:
-          - name: PYTHONPATH
-            value: "/deps"
           - name: HF_TOKEN
             valueFrom:
               secretKeyRef:
@@ -267,25 +311,85 @@ spec:
         - name: config
           configMap:
             name: inference-perf-config
-        - name: python-deps
-          emptyDir: {}
 EOF
 ```
 
-### STEP 3: Retrieve Results
+**💡 Tip:** The resource values shown are starting points. For higher concurrency levels or longer test durations, monitor pod resource usage with `kubectl top pod -n benchmarking` and adjust accordingly.
 
-With S3 Storage (Recommended) the results are automatically uploaded to your S3 bucket. Access them directly:
+
+**Future Enhancement:** A Helm chart template is planned for simplified deployment (similar to the [guidellm template pattern](https://github.com/omrishiv/ai-on-eks/blob/begin-inference-guidance/blueprints/inference/inference-charts/templates/guidellm-pod.yaml)) to streamline configuration management and reduce deployment complexity. The current YAML approach provides full transparency for learning purposes. Contributions welcome!
+
+## STEP 3: Deploy and Monitor
+
+Save the manifest above as `inference-perf-complete.yaml` and deploy it.
 
 ```bash
-aws s3 cp s3://inference-perf-results/inference-perf/results/summary_lifecycle_metrics.json .
+# Deploy all resources
+
+kubectl apply -f inference-perf-complete.yaml
+
+
+
+# Monitor job progress
+
+kubectl get jobs -n benchmarking -w
+
+
+
+# Follow logs to see benchmark progress
+
+kubectl logs -n benchmarking -l app=inference-perf -f
+
 ```
 
-With local storage, copy the results before the pod terminates, if 
+## STEP 4: Retrieve Results
+
+### With S3 Storage (Recommended):
+Results are automatically uploaded to your S3 bucket. Access them directly:
 
 ```bash
+# List results in S3
+
+aws s3 ls s3://inference-perf-results/inference-perf/ --recursive
+
+
+
+# Download specific report
+
+aws s3 cp s3://inference-perf-results/inference-perf/20251020-143000/summary_lifecycle_metrics.json ./
+
+```
+
+### With Local Storage (Alternative):
+If using `local_storage` instead of S3, you must manually copy results before the pod terminates:
+
+```bash
+# In config.yml, use:
+
+storage:
+
+  local_storage:
+
+    path: "reports-{timestamp}"
+
+
+
 # Get pod name
+
 POD_NAME=$(kubectl get pods -n benchmarking -l app=inference-perf -o jsonpath='{.items[0].metadata.name}')
 
+
+
 # Copy results from pod
+
 kubectl cp benchmarking/$POD_NAME:/reports-* ./local-reports/
 ```
+
+### Storage Comparison:
+
+| Feature | Local Storage | S3 Storage |
+|---|---|---|
+| Setup | None required | AWS credentials needed |
+| Persistence | Manual copy required | Automatic |
+| Best for | Quick tests, experimentation | Production, automation |
+| Results access | kubectl cp command | AWS S3 commands/console |

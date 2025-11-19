@@ -34,13 +34,13 @@ Why use a [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/)?
 If using Mistral or Llama models, you must install the sentencepiece package. See "Handling Model Dependencies" section below for implementation.
 
 
-### Understanding the Inference Benchmark Framework architecture
+## Understanding the Inference Benchmark Framework architecture
 
-Before deploying, it’s important to understand the key configuration components that define your benchmark test.
+Before deploying, it's important to understand the key configuration components that define your benchmark test.
 
-#### API Configuration
+### API Configuration
 
-Defines how the tool communicates with your inference endpoint. You’ll specify whether you’re using completion or chat API, and whether streaming is enabled (required for measuring TTFT and ITL metrics).
+Defines how the tool communicates with your inference endpoint. You'll specify whether you're using completion or chat API, and whether streaming is enabled (required for measuring TTFT and ITL metrics).
 
 ```yaml
 api:
@@ -48,21 +48,23 @@ api:
   streaming: true # Enable for TTFT/ITL metrics
 ```
 
-#### Data Generation
+**Note:** `completion` is the recommended default because vLLM and most model servers don't enable the chat API by default without additional configuration. Use `type: chat` only if you've explicitly configured your model server to support the chat completion endpoint.
+
+### Data Generation
 
 Controls what data is sent to your inference endpoint. You can use real datasets (ShareGPT) or synthetic data with controlled distributions. Synthetic data is useful when you need specific input/output length patterns for testing.
 
 ```yaml
 data:
 
-  type: synthetic # shareGPT, synthetic, random, shared_prefix, etc.  
-  
+  type: synthetic # shareGPT, synthetic, random, shared_prefix, etc.
+
   input_distribution:
     mean: 512      # Average input prompt length in tokens
     std_dev: 128   # Variation in prompt length (68% within ±128 tokens of mean)
     min: 128       # Minimum input tokens (clips distribution lower bound)
     max: 2048      # Maximum input tokens (clips distribution upper bound)
-  
+
   output_distribution:
     mean: 256      # Average generated response length in tokens
     std_dev: 64    # Variation in response length (68% within ±64 tokens of mean)
@@ -71,7 +73,7 @@ data:
 ```
 
 
-#### Load Generation
+### Load Generation
 
 Defines your load pattern - how many requests per second and for how long. You can use multiple stages to test different load levels, or use sweep mode for automatic saturation detection.
 
@@ -84,58 +86,71 @@ load:
   num_workers: 4              # Concurrent workers generating load - increase if inference-perf can't achieve target rate (check scheduling delay in results)
 ```
 
-Note on `num_workers`: This controls the benchmark tool's internal parallelism, not concurrent users. The default value of 4 works for most scenarios. Only increase if results show high schedule_delay (> 10ms), indicating the tool cannot maintain the target rate.
+**Note on num_workers:** This controls the benchmark tool's internal parallelism, not concurrent users. The default value of 4 works for most scenarios. Only increase if results show high `schedule_delay` (> 10ms), indicating the tool cannot maintain the target rate.
 
-#### Server Configuration
+### Server Configuration
 
-Specifies your inference endpoint details - server type, model name, and URL. The base URL is the Kubernetes service address (<service-name>.<namespace-name>.svc.cluster.local).
+Specifies your inference endpoint details - server type, model name, and URL.
 
 ```yaml
 server:
+
   type: vllm # vllm, sglang, or tgi
+
   model_name: mistralai/Mistral-7B-Instruct-v0.3
+
   base_url: http://vllm-service.default:8000
+
   ignore_eos: true
 ```
 
-#### Storage Configuration
+### Storage Configuration
 
 Determines where benchmark results are saved. Local storage saves to the pod filesystem (requires manual copy), while S3 storage automatically persists results to your AWS bucket.
 
 ```yaml
 storage:
+
   local_storage: # Default: saves in pod
-    path: "reports-my-perf"
-    
-  # ⚠️ Warning: local_storage results are lost when pod terminates 
-  # To retrieve results, add '&& sleep infinity' to the Job args and use: 
+
+    path: "reports-{timestamp}"
+
+  # ⚠️ Warning: local_storage results are lost when pod terminates
+  # To retrieve results, add '&& sleep infinity' to the Job args and use:
   # kubectl cp <pod-name>:/workspace/reports-* ./local-results -n benchmarking
-  # We recommend to use s3 as the storage solution - see below
 
   # OR
 
-  simple_storage_service:
+  simple_storage_service: # S3: automatic persistence
+
     bucket_name: "my-results-bucket"
-    path: "inference-perf/my-perf"
+
+    path: "inference-perf/{timestamp}"
 ```
 
-#### Metrics Collection (Optional)
+### Metrics Collection (Optional)
 
 Enables advanced metrics collection from Prometheus if your inference server exposes metrics.
 
 ```yaml
 metrics:
+
   type: prometheus
+
   prometheus:
+
     url: http://kube-prometheus-stack-prometheus.monitoring:9090 # For ai-on-eks Path A; adjust service name/namespace for custom Prometheus
+
     scrape_interval: 15
 ```
 
-#### Infrastructure Topology for Reproducible Results
+**Note:** The Prometheus URL uses Kubernetes DNS format: `http://<service-name>.<namespace>:<port>`. If your Prometheus is deployed in a different namespace (e.g., `monitoring`, `observability`), update the URL accordingly. The benchmark Job runs in the `benchmarking` namespace, so cross-namespace service access must be specified.
 
-For accurate, comparable benchmarks across multiple runs, the inference-perf Job MUST be co-located with your inference deployment in the same Availability Zone.
+## Infrastructure Topology for Reproducible Results
 
-##### Why This Matters:
+For accurate, comparable benchmarks across multiple runs, the inference-perf Job **MUST** be co-located with your inference deployment in the same Availability Zone.
+
+### Why This Matters:
 
 Without proper placement, benchmark results become unreliable:
 
@@ -144,6 +159,105 @@ Without proper placement, benchmark results become unreliable:
 * You cannot determine if performance changes are real or due to infrastructure placement
 * Optimization decisions become impossible
 
-All benchmark examples in this guide include `affinity` configuration to enforce same-AZ placement using the standard Kubernetes topology label `topology.kubernetes.io/zone`.
+### Example of the Problem:
+
+```
+First benchmark run:
+- Benchmark pod in us-west-2a → Inference pod in us-west-2a
+- Result: TTFT = 800ms
+
+Second benchmark run (after pod restart):
+- Benchmark pod in us-west-2b → Inference pod in us-west-2a
+- Result: TTFT = 850ms
+```
+
+The 50ms difference is cross-AZ latency, not actual performance change.
+
+### Required Configuration:
+
+All benchmark Job examples in this guide include `affinity` configuration to enforce same-AZ placement using the standard Kubernetes topology label `topology.kubernetes.io/zone`:
+
+```yaml
+spec:
+  template:
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: mistral-vllm
+            topologyKey: topology.kubernetes.io/zone
+```
 
 
+**IMPORTANT:** The `matchLabels` must match your actual vLLM deployment labels. Check your deployment's pod labels with:
+
+```bash
+kubectl get deployment mistral-vllm -n vllm-benchmark -o jsonpath='{.spec.template.metadata.labels}' && echo
+```
+
+
+Common label patterns:
+
+* Standard deployments: `app: <service-name>` (most common - used in this guide's examples)
+* AI-on-EKS blueprints: `app.kubernetes.io/component: <service-name>`
+* Helm charts: `app.kubernetes.io/name: <service-name>`
+
+Update the `matchLabels` section in the examples to match your deployment's actual pod labels.
+
+### Verification:
+
+After deploying, confirm both pods are in the same AZ:
+
+```bash
+# Check both pods - they should show the same zone
+kubectl get pods -n vllm-benchmark -o wide -l app.kubernetes.io/component=mistral-vllm
+kubectl get pods -n benchmarking -o wide -l app=inference-perf
+
+# Expected output - both in same zone:
+# mistral-vllm-xxx    ip-10-0-1-100.us-west-2a...
+# inference-perf-yyy  ip-10-0-1-200.us-west-2a...
+```
+
+
+### Optional: Instance Type Consistency
+
+For maximum reproducibility (baseline benchmarks, CI/CD pipelines), you can also specify instance types:
+
+```yaml
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: c5.4xlarge
+      affinity:
+        podAffinity:
+          # ... same as above
+```
+
+
+**When to use instance type selectors:**
+
+* Creating benchmark baselines for documentation
+* CI/CD pipelines requiring consistent results
+* Preventing Karpenter from provisioning different instance families
+
+**When NOT needed:**
+
+* Homogeneous CPU node pools
+* Comparative testing (before/after on same infrastructure)
+
+### Troubleshooting:
+
+If your benchmark Job stays in `Pending`:
+
+```bash
+kubectl describe pod -n benchmarking <pod-name>
+```
+
+
+Common issues:
+
+* **No capacity in target AZ**: Scale cluster or use `preferredDuringSchedulingIgnoredDuringExecution`
+* **Label mismatch**: Verify deployment labels match podAffinity selector
