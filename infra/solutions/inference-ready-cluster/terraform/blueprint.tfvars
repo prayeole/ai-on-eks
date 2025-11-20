@@ -7,7 +7,8 @@ solution_description             = "Guidance for Automated Deployment of Inferen
 solution_id                      = "SO9615"
 availability_zones_count         = 4
 enable_soci_snapshotter          = true
-# region                           = "us-west-2"
+enable_envoy_ai_gateway          = true
+region                           = "us-west-2"
 # eks_cluster_version              = "1.33"
 
 # -------------------------------------------------------------------------------------

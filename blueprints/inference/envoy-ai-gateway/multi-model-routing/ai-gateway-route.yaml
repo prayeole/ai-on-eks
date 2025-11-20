@@ -1,7 +1,7 @@
 apiVersion: aigateway.envoyproxy.io/v1alpha1
 kind: AIGatewayRoute
 metadata:
-  name: multi-model-route
+  name: ai-gateway-route
   namespace: default
 spec:
   parentRefs:

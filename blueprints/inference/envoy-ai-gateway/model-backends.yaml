@@ -7,7 +7,7 @@ metadata:
 spec:
   endpoints:
     - fqdn:
-        hostname: gpt-oss-backend.default.svc.cluster.local
+        hostname: gpt-oss.default.svc.cluster.local
         port: 8000
 ---
 apiVersion: aigateway.envoyproxy.io/v1alpha1
@@ -46,3 +46,32 @@ spec:
     group: gateway.envoyproxy.io
   schema:
     name: OpenAI
+---
+# Bedrock backend configuration with TLS
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: bedrock-aws-backend
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: bedrock-runtime.us-west-2.amazonaws.com
+        port: 443
+  tls:
+    wellKnownCACertificates: System
+---
+# AI Service Backend for Bedrock with AWSAnthropic schema
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: AIServiceBackend
+metadata:
+  name: bedrock-aws
+  namespace: default
+spec:
+  backendRef:
+    name: bedrock-aws-backend
+    kind: Backend
+    group: gateway.envoyproxy.io
+  schema:
+    name: AWSAnthropic
+    version: bedrock-2023-05-31

@@ -1,20 +1,112 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: envoy-ai-gateway
+  name: redis
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: redis
+    targetRevision: 19.6.4
+    helm:
+      parameters:
+        - name: auth.enabled
+          value: "false"
+        - name: replica.replicaCount
+          value: "0"
+        - name: image.registry
+          value: "public.ecr.aws"
+        - name: image.repository
+          value: "bitnami/redis"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redis-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-ai-gateway-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/envoyproxy/ai-gateway
+    path: manifests/charts/ai-gateway-crds-helm
+    targetRevision: v0.4.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: envoy-ai-gateway-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-ai-gateway-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
   sources:
   - repoURL: https://github.com/envoyproxy/ai-gateway
-    path: manifests/charts/ai-gateway-crds-helm
-    targetRevision: main
-  - repoURL: https://github.com/envoyproxy/ai-gateway
     path: manifests/charts/ai-gateway-helm
-    targetRevision: main
+    targetRevision: v0.4.0
+    helm:
+      valueFiles:
+      - $VALUES/infra/base/terraform/helm-values/envoy-ai-gateway-values.yaml
+  - repoURL: https://github.com/awslabs/ai-on-eks
+    targetRevision: HEAD
+    ref: VALUES
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-ai-gateway-system
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  sources:
+  - chart: gateway-helm
+    repoURL: docker.io/envoyproxy
+    targetRevision: v1.5.3
+    helm:
+      valueFiles:
+      - $VALUES/infra/base/terraform/helm-values/envoy-gateway-values.yaml
+  - repoURL: https://github.com/awslabs/ai-on-eks
+    targetRevision: HEAD
+    ref: VALUES
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: envoy-gateway-system
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

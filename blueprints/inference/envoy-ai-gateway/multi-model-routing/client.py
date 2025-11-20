@@ -32,9 +32,12 @@ def test_model(gateway_url, model_name, test_name):
     }
 
     payload = {
-        # "model": model_name,
+        "model": model_name,
         "messages": [
-            {"role": "user", "content": f"Hello from {model_name}! Please respond briefly."}
+            {
+                "role": "user",
+                "content": f"Hello from {model_name}! Please respond briefly."
+            }
         ],
         "max_tokens": 100,
         "temperature": 0.7
