@@ -33,14 +33,6 @@ resource "kubectl_manifest" "envoy_ai_gateway_yaml" {
   ]
 }
 
-resource "kubectl_manifest" "envoy_gateway_yaml" {
-  count     = var.enable_envoy_gateway ? 1 : 0
-  yaml_body = file("${path.module}/argocd-addons/envoy-gateway.yaml")
-  depends_on = [
-    module.eks_blueprints_addons
-  ]
-}
-
 resource "kubectl_manifest" "lws_yaml" {
   count     = var.enable_leader_worker_set ? 1 : 0
   yaml_body = file("${path.module}/argocd-addons/leader-worker-set.yaml")

@@ -1,0 +1,14 @@
+# Backend Security Policy for AWS Bedrock authentication
+apiVersion: aigateway.envoyproxy.io/v1alpha1
+kind: BackendSecurityPolicy
+metadata:
+  name: bedrock-aws-auth
+  namespace: default
+spec:
+  type: AWSCredentials
+  targetRefs:
+    - group: aigateway.envoyproxy.io
+      kind: AIServiceBackend
+      name: bedrock
+  awsCredentials:
+    region: us-west-2

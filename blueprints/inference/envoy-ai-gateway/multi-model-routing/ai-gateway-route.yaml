@@ -1,7 +1,7 @@
 apiVersion: aigateway.envoyproxy.io/v1alpha1
 kind: AIGatewayRoute
 metadata:
-  name: multi-model-route
+  name: ai-gateway-route
   namespace: default
 spec:
   parentRefs:
@@ -24,9 +24,9 @@ spec:
     backendRefs:
     - name: gpt-oss
   - matches:
-      - headers:
-        - name: x-ai-eg-model
-          type: Exact
-          value: anthropic.claude-3-7-sonnet-20250219-v1:0
+    - headers:
+      - name: x-ai-eg-model
+        type: Exact
+        value: anthropic.claude-3-haiku-20240307-v1:0
     backendRefs:
-      - name: bedrock
+    - name: bedrock
