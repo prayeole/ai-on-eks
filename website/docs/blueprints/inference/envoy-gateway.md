@@ -188,7 +188,7 @@ qwen3-b5fdf6bd5-cxkwd      1/1     Running   0          44h
 
 ### Enabling access to AWS Bedrock models
 
-Access to all Amazon Bedrock foundation models is enabled by default with the correct AWS Marketplace permissions. For more details on managing access to models in Amazon Bedrock, review Access Amazon Bedrock foundation models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+Access to all Amazon Bedrock foundation models is enabled by default with the correct AWS Marketplace permissions. For more details on managing access to models in Amazon Bedrock, review [Access Amazon Bedrock foundation models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
 
 Review [Supported foundation models in Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) for a list of foundation models available via Amazon Bedrock and relevant model information including Model ID.
 
@@ -243,3 +243,5 @@ aigatewayroute.aigateway.envoyproxy.io/multi-model-route created
 ```bash
 python3 multi-model-routing/client.py
 ```
+## Rate limiting
+
