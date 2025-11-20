@@ -94,6 +94,7 @@ def test_bedrock_rate_limiting(gateway_url):
     }
     
     payload = {
+        "model": model_name,
         "messages": [
             {
                 "role": "user",

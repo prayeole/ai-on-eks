@@ -9,6 +9,6 @@ spec:
   targetRefs:
     - group: aigateway.envoyproxy.io
       kind: AIServiceBackend
-      name: bedrock-aws
+      name: bedrock
   awsCredentials:
     region: us-west-2

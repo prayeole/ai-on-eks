@@ -1,10 +1,38 @@
 # Envoy AI Gateway Blueprint
 
-This blueprint demonstrates how to deploy and configure Envoy AI Gateway v0.4.0 on Amazon EKS for intelligent routing and management of AI/ML workloads.
+Organizations deploying AI applications face a fundamental challenge: no single model serves all needs. Developers may choose Claude for long-context analysis, OpenAI for reasoning tasks, and DeepSeek for cost-sensitive workloads. The problem is that each model provider uses different APIs. Without centralized control, teams can't easily switch providers, get visibility into utilization, or enforce quotas.
 
-## Overview
+[Envoy AI Gateway](https://aigateway.envoyproxy.io/) is an open source project that solves this challenge by providing a single, scalable OpenAI-compatible endpoint that routes to multiple supported LLM providers. It gives Platform teams cost controls and observability, while developers never touch provider-specific SDKs.
 
-Envoy AI Gateway provides a unified entry point for multiple AI models with advanced routing, rate limiting, and observability features. This blueprint includes three practical use-cases that can be deployed independently or together.
+## Key objectives of Envoy AI Gateway
+
+- Provide a unified layer for routing and managing LLM/AI traffic
+- Support automative failover mechanisms to ensure service reliability
+- Ensure end-to-end security, including upstream authorization for LLM/AI traffic
+- Implement a policy framework to support usage limiting use cases
+- Foster an open-source community to address GenAI-specific routing and quality of service needs
+
+## Envoy Gateway Fundamentals
+
+:::info If you're already familiar with Envoy Gateway, you can skip this section.
+:::
+
+As Envoy AI Gateway builds on top of the standard Kubernetes Gateway API and Envoy Gateway extensions, it's necessary to familiarize yourself with the underlying Envoy Gateway primitives:
+
+- **GatewayClass** - Defines which controller manages the Gateway. Envoy AI Gateway uses the same GatewayClass as Envoy Gateway.
+- **Gateway** - The entry point for traffic. A Gateway resource defines listeners (HTTP/HTTPS ports). When you create a Gateway, Envoy Gateway deploys the actual Envoy proxy pods and a corresponding Kubernetes Service (typically a LoadBalancer).
+- **HTTPRoute** - The instruction for routing traffic HTTP based on hostnames, paths, or headers. Conceptually, this is similar to ingress rules or listener rules in ALB.
+- **Backend** - A Kubernetes Service or an external endpoint.
+- **BackendTrafficPolicy** - Configures connection behavior like timeouts, retries, and rate limiting of an HTTPRoute.
+- **ClientTrafficPolicy** - Configures how the Envoy proxy server behaves with downstream clients.
+- **EnvoyExtensionPolicy** - A way to extend Envoy's traffic processing capabilities.
+
+Envoy AI Gateway introduces following CRDs:
+
+- **AIGatewayRoute** - Defines unified API and routing rules for AI traffic
+- **AIServiceBackend** - Represents individual AI service backends like Bedrock
+- **BackendSecurityPolicy** - Configures authentication for backend access
+- **BackendTLSPolicy** - Defines TLS parameters for backend connections
 
 ## Architecture
 
@@ -12,33 +40,65 @@ Envoy AI Gateway provides a unified entry point for multiple AI models with adva
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
 │   Client Apps   │───▶│  Envoy Gateway   │───▶│   AI Model Services │
 └─────────────────┘    └──────────────────┘    └─────────────────────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │  AI Gateway      │
-                       │  Controller      │
-                       └──────────────────┘
+                              │                        │
+                              ▼                        ▼
+                       ┌──────────────────┐    ┌─────────────────────┐
+                       │  AI Gateway      │    │   AWS Bedrock       │
+                       │  Controller      │    │   Claude Models     │
+                       └──────────────────┘    └─────────────────────┘
 ```
 
+This envoy gateway blueprint deploys Envoy AI Gateway on Amazon EKS and supports two use cases:
 
-## Quick Start
+- Multi-model routing
+- Rate limiting
 
-### 1. Deploy Infrastructure (One-Time Setup)
+## Prerequisites
+
+Before we begin, ensure you have all the necessary prerequisites in place to make the deployment process smooth. Make sure you have installed the following tools on your machine:
+
+1. [aws cli](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+2. [kubectl](https://Kubernetes.io/docs/tasks/tools/)
+3. [terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+4. [envsubst](https://pypi.org/project/envsubst/)
+
+## Deploy
+
+Clone the repository
 
 ```bash
-# Deploy the inference-ready-cluster with Envoy AI Gateway enabled
-cd infra/solutions/inference-ready-cluster/terraform
-# Set enable_envoy_ai_gateway = true in blueprint.tfvars
-terraform apply
+git clone https://github.com/awslabs/ai-on-eks.git
 ```
 
-This automatically deploys:
-- Envoy Gateway with AI Gateway support
-- AI Gateway Controller
-- Redis for rate limiting
-- Required IAM roles and Pod Identity associations
+**Important Note:**
 
-### 2. Deploy AI Models
+**Step1**: Ensure that you update the region in the `blueprint.tfvars` file before deploying the blueprint.
+Additionally, confirm that your local region setting matches the specified region to prevent any discrepancies.
+
+For example, set your `export AWS_DEFAULT_REGION="<REGION>"` to the desired region:
+
+**Step2**: Run the installation script.
+
+```bash
+cd ai-on-eks/infra/envoy-ai-gateway/ && chmod +x install.sh
+./install.sh
+```
+
+### Verify the resources
+
+Once the installation finishes, verify the Amazon EKS Cluster.
+
+Creates k8s config file to authenticate with EKS.
+
+```bash
+aws eks --region us-west-2 update-kubeconfig --name envoy-gateway-cluster
+```
+
+```bash
+kubectl get nodes
+```
+
+## Deploy AI Models
 
 ```bash
 # Create Hugging Face token secret
@@ -63,40 +123,62 @@ helm install gpt-oss ai-on-eks/inference-charts \
   --set inference.serviceName=gpt-oss
 ```
 
-### 3. Configure Gateway and Backends
+## Multi-model routing
+
+Route requests to different AI models based on the `x-ai-eg-model` header. This header enables Envoy AI gateway to identify appropriate route configured within the gateway and routes client traffic to relevant backend kubernetes service. In this case, it's a service that exposes a self-hosted model or Amazon Bedrock model.
+
+### Deploy common gateway infrastructure
 
 ```bash
-# Deploy gateway and model backend configurations
 kubectl apply -f gateway.yaml
+```
+
+### Configure model backends
+
+```bash
 kubectl apply -f model-backends.yaml
 ```
 
-## Use Cases
+### Configure model routes
 
-### 🎯 Multi-Model Routing
-**Purpose**: Route requests to different AI models based on HTTP headers
-
-**Features**:
-- Header-based routing using `x-ai-eg-model`
-- Support for self-hosted models (qwen3, gpt-oss)
-- Real AI model integration with OpenAI GPT OSS 20B, Qwen3-1.7B
-- Auto-detecting test client
-
-
-**Deploy**:
 ```bash
-cd multi-model-routing
-kubectl apply -f ai-gateway-route.yaml
+kubectl apply -f multi-model-routing/ai-gateway-route.yaml
 ```
 
-**Test**:
+### Test multi-model routing
+
 ```bash
-# Test multi-model routing (requires actual AI models)
-python3 client.py
+python3 multi-model-routing/client.py
 ```
 
-### 🚦 Rate Limiting
-**Purpose**: Token-based rate limiting with automatic tracking for AI workloads
+**Expected Output**:
+```
+🚀 AI Gateway Multi-Model Routing Test
+============================================================
+Gateway URL: http://your-gateway-url
+=== Testing Qwen3 1.7B ===
+Status Code: 200
+✅ SUCCESS: Qwen3 - [response content]
+
+=== Testing Self-hosted GPT ===
+Status Code: 200
+✅ SUCCESS: GPT - [response content]
+
+=== Testing Bedrock Claude ===
+Status Code: 200
+✅ SUCCESS: Bedrock Claude - [response content]
+
+🎯 Final Results:
+• Qwen3 1.7B: ✅ PASS
+• GPT OSS 20B: ✅ PASS  
+• Bedrock Claude: ✅ PASS
+
+📊 Summary: 3/3 models working
+```
+
+## Rate limiting
+
+Token-based rate limiting with automatic tracking for AI workloads.
 
 **Features**:
 - Token-based rate limiting (input, output, and total tokens)
@@ -104,63 +186,49 @@ python3 client.py
 - Redis backend for distributed rate limiting (automatically deployed)
 - Configurable limits per user per time window
 
-**Prerequisites**:
-- AI models deployed and returning token usage data
-- Redis automatically available via ArgoCD infrastructure
+### Deploy rate limiting
 
-**Deploy**:
 ```bash
-cd rate-limiting
-kubectl apply -f ai-gateway-route.yaml
-kubectl apply -f ai-gateway-rate-limit.yaml
-kubectl apply -f backend-traffic-policy.yaml
+kubectl apply -f rate-limiting/ai-gateway-route.yaml
+kubectl apply -f rate-limiting/ai-gateway-rate-limit.yaml
+kubectl apply -f rate-limiting/backend-traffic-policy.yaml
 ```
 
-**Test**:
+### Test rate limiting
+
 ```bash
-# Test rate limiting (requires actual AI models with token usage)
-python3 client.py
+python3 rate-limiting/client.py
 ```
 
-### 🤖 Bedrock Integration
-**Purpose**: Route requests to Amazon Bedrock models alongside self-hosted models
+## Configuration Details
 
-**Features**:
-- Native Bedrock support using AWSAnthropic schema
-- Anthropic Claude models via `/anthropic/v1/messages` endpoint
-- Pod Identity authentication (automatically configured)
-- TLS configuration for secure HTTPS endpoints
+### Routing Configuration
+The AI Gateway routes requests based on the `x-ai-eg-model` header:
 
+| Header Value | Backend | Endpoint | Model Type |
+|--------------|---------|----------|------------|
+| `Qwen/Qwen3-1.7B` | qwen3 | `/v1/chat/completions` | Self-hosted |
+| `openai/gpt-oss-20b` | gpt-oss | `/v1/chat/completions` | Self-hosted |
+| `anthropic.claude-3-haiku-20240307-v1:0` | bedrock | `/anthropic/v1/messages` | AWS Bedrock |
 
-**Deploy**:
-```bash
-cd bedrock-integration
-kubectl apply -f pod-identity-setup.yaml
-kubectl apply -f ai-gateway-route.yaml
-kubectl apply -f backend-security-policy.yaml
-```
-
-**Test**:
-```bash
-# Test Bedrock integration (requires AWS Bedrock access)
-python3 client.py
-```
-
-**Key Configuration Notes**:
-- **Authentication**: Pod Identity automatically configured via Terraform
-- **Endpoint**: Use `/anthropic/v1/messages` (Anthropic Messages API format)
-- **Schema**: `AWSAnthropic`
+### Bedrock Integration Details
+- **Authentication**: Pod Identity (automatically configured via installation script)
+- **Schema**: AWSAnthropic for native Bedrock support
+- **Endpoint**: `/anthropic/v1/messages` (Anthropic Messages API format)
+- **Region**: Configurable in `backend-security-policy.yaml` (default: us-west-2)
 
 ## Resources
 
 - [Envoy AI Gateway Documentation](https://github.com/envoyproxy/ai-gateway)
 - [Envoy Gateway Documentation](https://gateway.envoyproxy.io/)
 - [AI on EKS Website](https://awslabs.github.io/ai-on-eks/)
+- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
 
 ## Important Notes
 
-- **Multi-Model Routing**: Requires deployed AI model services (qwen3, gpt-oss)
+- **Multi-Model Routing**: Requires deployed AI model services and AWS Bedrock access
 - **Rate Limiting**: Requires actual AI models that return real token usage data and Redis for storage
 - **Bedrock Integration**: Requires AWS Bedrock API access, proper IAM setup, and Pod Identity configuration
+- **Authentication**: Pod Identity for Bedrock is automatically configured when deploying via the installation script
 
 These are working configuration examples that demonstrate AI Gateway capabilities with real AI model deployments and AWS Bedrock integration.
