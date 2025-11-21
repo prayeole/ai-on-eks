@@ -115,7 +115,7 @@ helm install qwen3-1.7b ai-on-eks/inference-charts \
   --set fullnameOverride=qwen3 \
   --set inference.serviceName=qwen3
 
-# Deploy gpt-oss model  
+# Deploy gpt-oss model
 helm install gpt-oss ai-on-eks/inference-charts \
   -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-gpt-oss-20b-vllm.yaml \
   --set nameOverride=gpt-oss \
@@ -170,7 +170,7 @@ Status Code: 200
 
 🎯 Final Results:
 • Qwen3 1.7B: ✅ PASS
-• GPT OSS 20B: ✅ PASS  
+• GPT OSS 20B: ✅ PASS
 • Bedrock Claude: ✅ PASS
 
 📊 Summary: 3/3 models working

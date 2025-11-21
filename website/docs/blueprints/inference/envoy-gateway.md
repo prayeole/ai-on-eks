@@ -192,6 +192,20 @@ Access to all Amazon Bedrock foundation models is enabled by default with the co
 
 Review [Supported foundation models in Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) for a list of foundation models available via Amazon Bedrock and relevant model information including Model ID.
 
+Deploy pod identity for providing Bedrock service permissions:
+
+```bash
+cd ../../blueprints/inference/envoy-ai-gateway/
+kubectl apply -f multi-model-routing/pod-identity-setup.yaml
+```
+
+```text
+serviceaccount/ai-gateway-dataplane-aws created
+role.rbac.authorization.k8s.io/ai-gateway-dataplane-aws created
+rolebinding.rbac.authorization.k8s.io/ai-gateway-dataplane-aws created
+envoyproxy.gateway.envoyproxy.io/ai-gateway-with-aws created
+```
+
 ## Multi-model routing
 
 Route requests to different AI models based on the `x-ai-eg-model` header. This header enables Envoy AI gateway to identify appropriate route configured within the gateway and routes client traffic to relevant backend kubernetes service. In this case, it's a service that exposes a self-hosted model or Amazon Bedrock model.
@@ -199,7 +213,6 @@ Route requests to different AI models based on the `x-ai-eg-model` header. This 
 ### Deploy common gateway infrastructure
 
 ```bash
-cd ../
 kubectl apply -f gateway.yaml
 ```
 
@@ -225,7 +238,16 @@ backend.gateway.envoyproxy.io/bedrock-backend created
 aiservicebackend.aigateway.envoyproxy.io/bedrock created
 backendsecuritypolicy.aigateway.envoyproxy.io/bedrock-policy created
 backendtlspolicy.gateway.networking.k8s.io/bedrock-tls created
-serviceaccount/ai-gateway-dataplane-aws created
+```
+
+### Configure backend security policy for AWS Bedrock models
+
+```bash
+kubectl apply -f multi-model-routing/backend-security-policy.yaml
+```
+
+```text
+backendsecuritypolicy.aigateway.envoyproxy.io/bedrock-aws-auth created
 ```
 
 ### Configure model routes
@@ -243,5 +265,85 @@ aigatewayroute.aigateway.envoyproxy.io/multi-model-route created
 ```bash
 python3 multi-model-routing/client.py
 ```
+
+**Expected Output**:
+```
+🚀 AI Gateway Multi-Model Routing Test
+============================================================
+Gateway URL: http://k8s-envoygat-envoydef-xxxxxxxxxx-xxxxxxxxxxxxxxxx.elb.us-west-2.amazonaws.com
+
+=== Testing Qwen3 1.7B ===
+Status Code: 200
+✅ SUCCESS: Qwen3 - [response content]
+
+=== Testing Self-hosted GPT ===
+Status Code: 200
+✅ SUCCESS: GPT - [response content]
+
+=== Testing Bedrock Claude ===
+Status Code: 200
+✅ SUCCESS: Bedrock Claude - [response content]
+
+🎯 Final Results:
+• Qwen3 1.7B: ✅ PASS
+• GPT OSS 20B: ✅ PASS
+• Bedrock Claude: ✅ PASS
+
+📊 Summary: 3/3 models working
+```
+
 ## Rate limiting
 
+Token-based rate limiting with automatic tracking for AI workloads.
+
+**Features**:
+- Token-based rate limiting (input, output, and total tokens)
+- User-based rate limiting using `x-user-id` header
+- Redis backend for distributed rate limiting (automatically deployed)
+- Configurable limits per user per time window
+
+### Configure rate limiting
+
+```bash
+kubectl apply -f rate-limiting/ai-gateway-route.yaml
+kubectl apply -f rate-limiting/ai-gateway-rate-limit.yaml
+kubectl apply -f rate-limiting/backend-traffic-policy.yaml
+```
+
+### Test rate limiting
+
+```bash
+python3 rate-limiting/client.py
+```
+
+## Configuration Details
+
+### Routing Configuration
+The AI Gateway routes requests based on the `x-ai-eg-model` header:
+
+| Header Value | Backend | Endpoint | Model Type |
+|--------------|---------|----------|------------|
+| `Qwen/Qwen3-1.7B` | qwen3 | `/v1/chat/completions` | Self-hosted |
+| `openai/gpt-oss-20b` | gpt-oss | `/v1/chat/completions` | Self-hosted |
+| `anthropic.claude-3-haiku-20240307-v1:0` | bedrock | `/anthropic/v1/messages` | AWS Bedrock |
+
+### Bedrock Integration Details
+- **Authentication**: Pod Identity (automatically configured via installation script)
+- **Schema**: AWSAnthropic for native Bedrock support
+- **Endpoint**: `/anthropic/v1/messages` (Anthropic Messages API format)
+- **Region**: Configurable in `backend-security-policy.yaml` (default: us-west-2)
+
+## Resources
+
+- [Envoy AI Gateway Documentation](https://github.com/envoyproxy/ai-gateway)
+- [Envoy Gateway Documentation](https://gateway.envoyproxy.io/)
+- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
+
+## Important Notes
+
+- **Multi-Model Routing**: Requires deployed AI model services and AWS Bedrock access
+- **Rate Limiting**: Requires actual AI models that return real token usage data and Redis for storage
+- **Bedrock Integration**: Requires AWS Bedrock API access, proper IAM setup, and Pod Identity configuration
+- **Authentication**: Pod Identity for Bedrock is automatically configured when deploying via the installation script
+
+These are working configuration examples that demonstrate AI Gateway capabilities with real AI model deployments and AWS Bedrock integration.

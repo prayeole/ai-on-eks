@@ -12,10 +12,10 @@ def get_gateway_url():
     """Auto-detect the Gateway URL using kubectl"""
     try:
         result = subprocess.run([
-            'kubectl', 'get', 'gateway', 'ai-gateway', 
+            'kubectl', 'get', 'gateway', 'ai-gateway',
             '-o', 'jsonpath={.status.addresses[0].value}'
         ], capture_output=True, text=True, check=True)
-        
+
         if result.stdout.strip():
             return f"http://{result.stdout.strip()}"
         else:
@@ -29,26 +29,26 @@ def test_gpt_rate_limiting(gateway_url):
     """Test rate limiting with GPT model"""
     print("🔹 Testing GPT Model Rate Limiting")
     print("-" * 40)
-    
+
     model_name = "openai/gpt-oss-20b"
     user_id = "test-user-gpt"
-    
+
     headers = {
         "Content-Type": "application/json",
         "x-ai-eg-model": model_name,
         "x-user-id": user_id
     }
-    
+
     payload = {
         "model": model_name,
         "prompt": "Hello! This is a rate limiting test.",
         "max_tokens": 5,
         "temperature": 0.7
     }
-    
+
     successful_requests = 0
     rate_limited_requests = 0
-    
+
     # Send multiple requests to trigger rate limiting
     for i in range(1, 6):  # Test with 5 requests
         try:
@@ -58,9 +58,9 @@ def test_gpt_rate_limiting(gateway_url):
                 json=payload,
                 timeout=10
             )
-            
+
             print(f"Request {i}: Status {response.status_code}", end="")
-            
+
             if response.status_code == 200:
                 successful_requests += 1
                 result = response.json()
@@ -71,28 +71,28 @@ def test_gpt_rate_limiting(gateway_url):
                 print(f" 🚫 RATE LIMITED")
             else:
                 print(f" ❌ ERROR")
-                
+
         except requests.exceptions.RequestException as e:
             print(f"Request {i}: ❌ Request failed")
-        
+
         time.sleep(0.5)
-    
+
     return successful_requests, rate_limited_requests
 
 def test_bedrock_rate_limiting(gateway_url):
     """Test rate limiting with Bedrock Claude"""
     print("\n🔹 Testing Bedrock Claude Rate Limiting")
     print("-" * 40)
-    
+
     model_name = "anthropic.claude-3-haiku-20240307-v1:0"
     user_id = "test-user-bedrock"
-    
+
     headers = {
         "Content-Type": "application/json",
         "x-ai-eg-model": model_name,
         "x-user-id": user_id
     }
-    
+
     payload = {
         "model": model_name,
         "messages": [
@@ -104,10 +104,10 @@ def test_bedrock_rate_limiting(gateway_url):
         "max_tokens": 5,
         "anthropic_version": "bedrock-2023-05-31"
     }
-    
+
     successful_requests = 0
     rate_limited_requests = 0
-    
+
     # Send multiple requests to trigger rate limiting
     for i in range(1, 6):  # Test with 5 requests
         try:
@@ -117,9 +117,9 @@ def test_bedrock_rate_limiting(gateway_url):
                 json=payload,
                 timeout=10
             )
-            
+
             print(f"Request {i}: Status {response.status_code}", end="")
-            
+
             if response.status_code == 200:
                 successful_requests += 1
                 result = response.json()
@@ -133,12 +133,12 @@ def test_bedrock_rate_limiting(gateway_url):
                 print(f" 🚫 RATE LIMITED")
             else:
                 print(f" ❌ ERROR")
-                
+
         except requests.exceptions.RequestException as e:
             print(f"Request {i}: ❌ Request failed")
-        
+
         time.sleep(0.5)
-    
+
     return successful_requests, rate_limited_requests
 
 def main():
@@ -147,23 +147,23 @@ def main():
     if not gateway_url:
         print("❌ Could not determine Gateway URL. Exiting.")
         return
-    
+
     print("🚀 Testing Token-Based Rate Limiting")
     print("=" * 50)
     print(f"Gateway URL: {gateway_url}")
-    
+
     # Test GPT rate limiting
     gpt_success, gpt_limited = test_gpt_rate_limiting(gateway_url)
-    
+
     # Test Bedrock rate limiting
     bedrock_success, bedrock_limited = test_bedrock_rate_limiting(gateway_url)
-    
+
     # Summary
     print("\n" + "=" * 50)
     print("FINAL SUMMARY:")
     print(f"GPT Model: {gpt_success} successful, {gpt_limited} rate limited")
     print(f"Bedrock Claude: {bedrock_success} successful, {bedrock_limited} rate limited")
-    
+
     if gpt_limited > 0 or bedrock_limited > 0:
         print("✅ Rate limiting is working!")
     elif gpt_success > 0 or bedrock_success > 0:

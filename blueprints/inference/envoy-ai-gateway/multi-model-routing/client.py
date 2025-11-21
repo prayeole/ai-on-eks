@@ -13,10 +13,10 @@ def get_gateway_url():
     """Auto-detect AI Gateway URL"""
     try:
         result = subprocess.run([
-            'kubectl', 'get', 'gateway', 'ai-gateway', 
+            'kubectl', 'get', 'gateway', 'ai-gateway',
             '-o', 'jsonpath={.status.addresses[0].value}'
         ], capture_output=True, text=True, check=True)
-        
+
         if result.stdout.strip():
             return f"http://{result.stdout.strip()}"
         else:
@@ -43,7 +43,7 @@ def test_qwen3_model(gateway_url):
             },
             timeout=30
         )
-        
+
         print(f"Status Code: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
@@ -74,7 +74,7 @@ def test_gpt_model(gateway_url):
             },
             timeout=30
         )
-        
+
         print(f"Status Code: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
@@ -106,7 +106,7 @@ def test_bedrock_claude(gateway_url):
             },
             timeout=30
         )
-        
+
         print(f"Status Code: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
@@ -123,30 +123,30 @@ def test_bedrock_claude(gateway_url):
 def main():
     print("🚀 AI Gateway Multi-Model Routing Test")
     print("=" * 60)
-    
+
     gateway_url = get_gateway_url()
     if not gateway_url:
         print("❌ Could not determine Gateway URL. Exiting.")
         sys.exit(1)
-        
+
     print(f"Gateway URL: {gateway_url}")
-    
+
     results = []
     results.append(test_qwen3_model(gateway_url))
     results.append(test_gpt_model(gateway_url))
     results.append(test_bedrock_claude(gateway_url))
-    
+
     print("\n" + "=" * 60)
     print("🎯 Final Results:")
     print(f"• Qwen3 1.7B: {'✅ PASS' if results[0] else '❌ FAIL'}")
     print(f"• GPT OSS 20B: {'✅ PASS' if results[1] else '❌ FAIL'}")
     print(f"• Bedrock Claude: {'✅ PASS' if results[2] else '❌ FAIL'}")
-    
+
     passed = sum(results)
     print(f"\n📊 Summary: {passed}/3 models working")
     print("📋 Routing: Header-based using 'x-ai-eg-model'")
     print("🔗 All models accessible through single Gateway endpoint")
-    
+
     if passed > 0:
         print(f"\n🎉 SUCCESS! {passed} model(s) working through AI Gateway!")
         sys.exit(0)
