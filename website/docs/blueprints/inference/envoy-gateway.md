@@ -192,20 +192,6 @@ Access to all Amazon Bedrock foundation models is enabled by default with the co
 
 Review [Supported foundation models in Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) for a list of foundation models available via Amazon Bedrock and relevant model information including Model ID.
 
-Deploy pod identity for providing Bedrock service permissions:
-
-```bash
-cd ../../blueprints/inference/envoy-ai-gateway/
-kubectl apply -f multi-model-routing/pod-identity-setup.yaml
-```
-
-```text
-serviceaccount/ai-gateway-dataplane-aws created
-role.rbac.authorization.k8s.io/ai-gateway-dataplane-aws created
-rolebinding.rbac.authorization.k8s.io/ai-gateway-dataplane-aws created
-envoyproxy.gateway.envoyproxy.io/ai-gateway-with-aws created
-```
-
 ## Multi-model routing
 
 Route requests to different AI models based on the `x-ai-eg-model` header. This header enables Envoy AI gateway to identify appropriate route configured within the gateway and routes client traffic to relevant backend kubernetes service. In this case, it's a service that exposes a self-hosted model or Amazon Bedrock model.
@@ -217,6 +203,7 @@ kubectl apply -f gateway.yaml
 ```
 
 ```text
+serviceaccount/ai-gateway-dataplane-aws created
 gatewayclass.gateway.networking.k8s.io/envoy-gateway created
 envoyproxy.gateway.envoyproxy.io/ai-gateway created
 gateway.gateway.networking.k8s.io/ai-gateway created
@@ -238,16 +225,6 @@ backend.gateway.envoyproxy.io/bedrock-backend created
 aiservicebackend.aigateway.envoyproxy.io/bedrock created
 backendsecuritypolicy.aigateway.envoyproxy.io/bedrock-policy created
 backendtlspolicy.gateway.networking.k8s.io/bedrock-tls created
-```
-
-### Configure backend security policy for AWS Bedrock models
-
-```bash
-kubectl apply -f multi-model-routing/backend-security-policy.yaml
-```
-
-```text
-backendsecuritypolicy.aigateway.envoyproxy.io/bedrock-aws-auth created
 ```
 
 ### Configure model routes
