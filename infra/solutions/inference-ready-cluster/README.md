@@ -61,7 +61,7 @@ This architecture provides flexibility to choose between cost-optimized inferenc
 high-throughput GPU inference based on your specific requirements, all while maintaining elastic scalability through
 Kubernetes and Karpenter.
 
-![Architecture Diagram](image/architecture.jpg)
+![Architecture Diagram](image/architecture.png)
 
 ## Architecture Steps
 
@@ -85,6 +85,26 @@ Kubernetes and Karpenter.
    environment. Service and Pod Monitors are deployed to watch for AI/ML related workloads and collect metrics. Grafana
    and dashboards are deployed to automatically visualize the metrics and logs side by side.
 7) Users are now able to deploy AI/ML inference workloads using the AI on EKS inference charts or others.
+
+## Example Model Deployment
+
+![Architecture Diagram](image/deployment.png)
+
+1) ML Engineers use a Helm chart `values` template file to set values for Helm chart for model deployment.
+2) ML Engineers use `kubectl/helm` CLI tools to deploy the templated Helm chart to the Amazon EKS environment.
+3) Model Helm Templates are applied to Amazon Elastic Kubernetes Service (EKS) API of Inference Ready Amazon EKS cluster
+   to start deployment of desired model.
+4) Amazon EKS API creates a Kubernetes pod and a service for the single model container deployment.
+5) Karpenter auto-scaler provisions Amazon Elastic Compute Cloud (EC2) instances to fulfill the compute node resource
+   request to schedule model pods.
+6) Docker container image requested by the deployed model for the container is pulled from Amazon Elastic Container
+   Registry
+7) The weights for the deployed model are pulled from Hugging Face into Amazon S3 for faster loading and loaded into the
+   model server
+8) External Model consumer users can now port-forward the Kubernetes service port to their local machines for accessing
+   the model
+9) User/application requests to deployed models in the Inference Ready AWS EKS cluster are routed through the Kubernetes
+   service to the model pods, responses are returned the same way.
 
 ## Plan your deployment
 

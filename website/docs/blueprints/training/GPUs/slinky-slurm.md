@@ -68,6 +68,7 @@ Ensure that you have installed the following tools on your machine.
 2. [kubectl](https://Kubernetes.io/docs/tasks/tools/)
 3. [terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 4. [docker](https://docs.docker.com/engine/install/)
+5. [helm](https://helm.sh/)
 
 **1. Clone the repository:**
 

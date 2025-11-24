@@ -85,6 +85,7 @@ The inference charts include pre-configured values files for popular models acro
 - **Llama 4 Scout 17B** - Mid-size language model
 - **Mistral Small 24B** - Efficient large language model
 - **GPT OSS 20B** - Open-source GPT variant
+- **Qwen3 1.7B** - Compact multilingual language model
 
 ### Diffusion Models
 
