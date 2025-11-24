@@ -21,8 +21,9 @@ cd ai-on-eks-charts
 
 helm install sweep-test ./charts/benchmark-charts \
   --set benchmark.scenario=sweep \
-  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
-  --set benchmark.target.modelName=mistral-7b \
+  --set benchmark.target.baseUrl=http://qwen3-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=qwen3-8b \
+  --set benchmark.target.tokenizerPath=Qwen/Qwen3-8B \
   --namespace benchmarking --create-namespace
 
 # Monitor progress - watch for automatic stage generation in logs
@@ -79,7 +80,7 @@ metadata:
 data:
   config.yml: |
     api:
-      type: chat
+      type: completion
       streaming: true
 
     data:
@@ -109,12 +110,12 @@ data:
 
     server:
       type: vllm
-      model_name: mistral-7b
-      base_url: http://mistral-vllm.vllm-benchmark:8000
+      model_name: qwen3-8b
+      base_url: http://qwen3-vllm.vllm-benchmark:8000
       ignore_eos: true
 
     tokenizer:
-      pretrained_model_name_or_path: mistralai/Mistral-7B-Instruct-v0.3
+      pretrained_model_name_or_path: Qwen/Qwen3-8B
 
     storage:
       simple_storage_service:
@@ -139,7 +140,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: mistral-vllm
+                app: qwen3-vllm
             topologyKey: topology.kubernetes.io/zone
 
       containers:
@@ -148,7 +149,6 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
           inference-perf --config_file /workspace/config.yml
         volumeMounts:
         - name: config

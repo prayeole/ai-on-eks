@@ -100,8 +100,9 @@ cd ai-on-eks-charts
 # Deploy a production simulation test
 helm install production-test ./charts/benchmark-charts \
   --set benchmark.scenario=production \
-  --set benchmark.target.baseUrl=http://mistral-vllm.vllm-benchmark:8000 \
-  --set benchmark.target.modelName=mistral-7b \
+  --set benchmark.target.baseUrl=http://qwen3-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.modelName=qwen3-8b \
+  --set benchmark.target.tokenizerPath=Qwen/Qwen3-8B \
   --namespace benchmarking --create-namespace
 ```
 
@@ -112,8 +113,9 @@ helm install production-test ./charts/benchmark-charts \
 benchmark:
   scenario: production
   target:
-    baseUrl: http://mistral-vllm.vllm-benchmark:8000
-    modelName: mistral-7b
+    baseUrl: http://qwen3-vllm.vllm-benchmark:8000
+    modelName: qwen3-8b
+    tokenizerPath: Qwen/Qwen3-8B
 
   # S3 storage configuration
   storage:
@@ -126,7 +128,7 @@ benchmark:
   affinity:
     enabled: true
     targetLabels:
-      app: mistral-vllm
+      app: qwen3-vllm
 
   # Resource allocation
   resources:
@@ -160,7 +162,7 @@ For learning purposes or highly customized deployments, you can deploy directly 
 
 #### Handling Model Dependencies
 
-Some models require additional Python packages that aren't included in the base inference-perf container. The most common requirement is `sentencepiece` for Mistral and Llama models.
+Some models require additional Python packages that aren't included in the base inference-perf container. For example, `sentencepiece` is needed for Mistral and Llama models. Qwen3 models use tiktoken which is already included, so no additional packages are required.
 
 **Two approaches:**
 
@@ -272,7 +274,7 @@ data:
   config.yml: |
     # API Configuration
     api:
-      type: chat
+      type: completion
       streaming: true
     # Data Generation - synthetic with realistic distributions
     data:
@@ -297,13 +299,13 @@ data:
     # Model Server
     server:
       type: vllm
-      model_name: mistral-7b
-      base_url: http://mistral-vllm.vllm-benchmark:8000
+      model_name: qwen3-8b
+      base_url: http://qwen3-vllm.vllm-benchmark:8000
       ignore_eos: true
 
     # Tokenizer
     tokenizer:
-      pretrained_model_name_or_path: mistralai/Mistral-7B-Instruct-v0.3
+      pretrained_model_name_or_path: Qwen/Qwen3-8B
 
     # Storage - Results automatically saved to S3
     storage:
@@ -345,7 +347,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: mistral-vllm
+                app: qwen3-vllm
             topologyKey: topology.kubernetes.io/zone
 
       containers:
@@ -354,9 +356,6 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - |
-            echo "Installing dependencies..."
-            pip install --no-cache-dir sentencepiece==0.2.0 protobuf==5.29.2
-            echo "Dependencies installed successfully"
             echo "Starting inference-perf..."
             inference-perf --config_file /workspace/config.yml
         volumeMounts:
