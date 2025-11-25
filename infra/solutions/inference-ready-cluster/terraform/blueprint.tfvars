@@ -8,12 +8,12 @@ solution_id                      = "SO9615"
 availability_zones_count         = 4
 enable_soci_snapshotter          = true
 # region                           = "us-west-2"
-# eks_cluster_version              = "1.33"
+# eks_cluster_version              = "1.34"
 
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration
 #
-# These are the EKS Cluster Addons managed by Terrafrom stack.
+# These are the EKS Cluster Addons managed by Terraform stack.
 # You can enable or disable any addon by setting the value to `true` or `false`.
 #
 # If you need to add a new addon that isn't listed here:
@@ -27,7 +27,7 @@ enable_cluster_addons = {
   kube-proxy                      = true
   vpc-cni                         = true
   eks-pod-identity-agent          = true
-  aws-ebs-csi-driver              = true
+  aws-ebs-csi-driver              = false
   metrics-server                  = false
   eks-node-monitoring-agent       = false
   amazon-cloudwatch-observability = false
