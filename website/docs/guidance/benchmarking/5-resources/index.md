@@ -109,7 +109,7 @@ data:
 
     model:
       model_name: mistral-7b
-      base_url: http://mistral-vllm.vllm-benchmark:8000
+      base_url: http://mistral-vllm.default:8000
       ignore_eos: true
 
       tokenizer:

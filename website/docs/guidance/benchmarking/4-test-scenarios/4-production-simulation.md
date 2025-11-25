@@ -17,7 +17,7 @@ cd ai-on-eks-charts
 
 helm install production-sim ./charts/benchmark-charts \
   --set benchmark.scenario=production \
-  --set benchmark.target.baseUrl=http://qwen3-vllm.vllm-benchmark:8000 \
+  --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
   --set benchmark.target.tokenizerPath=Qwen/Qwen3-8B \
   --namespace benchmarking --create-namespace
@@ -105,7 +105,7 @@ data:
     server:
       type: vllm
       model_name: qwen3-8b
-      base_url: http://qwen3-vllm.vllm-benchmark:8000
+      base_url: http://qwen3-vllm.default:8000
       ignore_eos: true
 
     tokenizer:

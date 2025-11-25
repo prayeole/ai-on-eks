@@ -194,7 +194,7 @@ spec:
 **IMPORTANT:** The `matchLabels` must match your actual vLLM deployment labels. Check your deployment's pod labels with:
 
 ```bash
-kubectl get deployment mistral-vllm -n vllm-benchmark -o jsonpath='{.spec.template.metadata.labels}' && echo
+kubectl get deployment mistral-vllm -n default -o jsonpath='{.spec.template.metadata.labels}' && echo
 ```
 
 
@@ -212,7 +212,7 @@ After deploying, confirm both pods are in the same AZ:
 
 ```bash
 # Check both pods - they should show the same zone
-kubectl get pods -n vllm-benchmark -o wide -l app.kubernetes.io/component=mistral-vllm
+kubectl get pods -n default -o wide -l app.kubernetes.io/component=mistral-vllm
 kubectl get pods -n benchmarking -o wide -l app=inference-perf
 
 # Expected output - both in same zone:
