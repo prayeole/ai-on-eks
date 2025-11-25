@@ -205,7 +205,7 @@ The solution comes in two parts:
 
 - The infrastructure for running inference workloads (this)
 - The models that can be deployed on top of a running environment (
-  the [inference charts](../../../blueprints/inference/inference-charts))
+  the [inference charts](https://github.com/awslabs/ai-on-eks-charts))
 
 ### ⚠️ Important Setup Instructions
 
@@ -461,99 +461,17 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 
 #### Deploy a model
 
-This step assumes you're at the root of the ai-on-eks folder. The following will deploy a Llama 3.2 1B model on a GPU
-node.
+The following will deploy a Qwen 3 1.7B model on a GPU node.
 
 ```bash
-cd blueprints/inference/inference-charts
-helm template . --values values-llama-32-1b-vllm.yaml > llama-32-1b-vllm.yaml
-kubectl apply -f llama-32-1b-vllm.yaml
-```
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-The template will create a deployment using vLLM for Llama 3.2-1B. It should look like this:
-
-```yaml
----
-# Source: ai-on-eks-inference-charts/templates/vllm-deployment.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: llama-32-1b-vllm
-  namespace: default
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8000
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    "app.kubernetes.io/component": "llama-32-1b-vllm"
----
-# Source: ai-on-eks-inference-charts/templates/vllm-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: llama-32-1b-vllm
-  namespace: default
-  labels:
-    "app.kubernetes.io/component": "llama-32-1b-vllm"
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      "app.kubernetes.io/component": "llama-32-1b-vllm"
-  template:
-    metadata:
-      labels:
-        "app.kubernetes.io/component": "llama-32-1b-vllm"
-    spec:
-      containers:
-        - name: vllm
-          image: "vllm/vllm-openai:v0.9.1"
-          imagePullPolicy: IfNotPresent
-          command: [ "/bin/sh", "-c" ]
-          args:
-            - vllm serve NousResearch/Llama-3.2-1B --gpu-memory-utilization 0.8 --max-model-len 8192 --max-num-batched-tokens 8192 --max-num-seqs 4 --max-parallel-loading-workers 2 --pipeline-parallel-size 1 --tensor-parallel-size 1 --tokenizer-pool-size 4
-          env:
-            - name: HUGGING_FACE_HUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: hf-token
-                  key: token
-          ports:
-            - containerPort: 8000
-              name: http
-          resources:
-            limits:
-              nvidia.com/gpu: 1
-            requests:
-              nvidia.com/gpu: 1
-          volumeMounts:
-            - mountPath: /dev/shm
-              name: dshm
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              "app.kubernetes.io/component": "llama-32-1b-vllm"
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: topology.kubernetes.io/zone
-              labelSelector:
-                matchLabels:
-                  "app.kubernetes.io/component": "llama-32-1b-vllm"
-      volumes:
-        - name: dshm
-          emptyDir:
-            medium: Memory
+helm install qwen3-1-7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
 ```
 
 Please take a look at all the different deployment options in
-the [inference charts readme](../../../blueprints/inference/inference-charts/README.md).
+the [inference charts readme](https://github.com/awslabs/ai-on-eks-charts/blob/main/charts/inference-charts/README.md).
 
 ### 📊 Monitoring and Observability
 
