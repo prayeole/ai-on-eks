@@ -70,7 +70,7 @@ helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
 # Deploy Qwen 3 1.7B on GPU with vLLM
-helm install llama-inference ai-on-eks/inference-charts \
+helm install qwen3-inference ai-on-eks/inference-charts \
   --values https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
 
 # Deploy DeepSeek R1 Distill on GPU with Ray-vLLM
@@ -117,7 +117,7 @@ helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
 # Deploy Qwen 3 1.7B on GPU with vLLM
-helm install llama-inference ai-on-eks/inference-charts \
+helm install qwen3-inference ai-on-eks/inference-charts \
   --values https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
 
 # Deploy DeepSeek R1 Distill on GPU with Ray-vLLM
