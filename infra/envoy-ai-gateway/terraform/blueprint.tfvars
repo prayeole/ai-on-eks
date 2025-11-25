@@ -1,8 +1,5 @@
 name                             = "envoy-gateway-cluster"
-enable_kuberay_operator          = true
 enable_ai_ml_observability_stack = true
-enable_aibrix_stack              = true
-enable_leader_worker_set         = true
 availability_zones_count         = 4
 enable_soci_snapshotter          = true
 enable_redis                     = true

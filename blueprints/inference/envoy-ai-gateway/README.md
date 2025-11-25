@@ -110,14 +110,14 @@ helm repo update
 
 # Deploy qwen3 model
 helm install qwen3-1.7b ai-on-eks/inference-charts \
-  -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-qwen3-1.7b-vllm.yaml \
+  -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml \
   --set nameOverride=qwen3 \
   --set fullnameOverride=qwen3 \
   --set inference.serviceName=qwen3
 
 # Deploy gpt-oss model
 helm install gpt-oss ai-on-eks/inference-charts \
-  -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-gpt-oss-20b-vllm.yaml \
+  -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-gpt-oss-20b-vllm.yaml \
   --set nameOverride=gpt-oss \
   --set fullnameOverride=gpt-oss \
   --set inference.serviceName=gpt-oss

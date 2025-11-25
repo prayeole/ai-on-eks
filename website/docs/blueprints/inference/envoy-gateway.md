@@ -138,7 +138,7 @@ deployment.apps/envoy-gateway                            1/1     1            1 
 
 ## Deploying self-hosted models
 
-Envoy AI gateway currently supports self-hosted models that can speak OpenAI API schema. We will deploy two models using [AI on EKS Inference Charts](https://awslabs.github.io/ai-on-eks/docs/blueprints/inference/inference-charts).
+Envoy AI gateway currently supports self-hosted models that can speak OpenAI API schema. We will deploy two models using [AI on EKS Inference Charts](https://github.com/awslabs/ai-on-eks-charts).
 
 ### 1. Create Hugging Face Token Secret
 
@@ -168,13 +168,13 @@ helm repo update
 
 ```bash
 # Model 1: Deploy qwen3 model
-helm install qwen3-1.7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-qwen3-1.7b-vllm.yaml \
+helm install qwen3-1.7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml \
   --set nameOverride=qwen3 \
   --set fullnameOverride=qwen3 \
   --set inference.serviceName=qwen3
 
 # Model 2: Deploy gpt oss model
-helm install gpt-oss ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-gpt-oss-20b-vllm.yaml \
+helm install gpt-oss ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-gpt-oss-20b-vllm.yaml \
   --set nameOverride=gpt-oss \
   --set fullnameOverride=gpt-oss \
   --set inference.serviceName=gpt-oss
