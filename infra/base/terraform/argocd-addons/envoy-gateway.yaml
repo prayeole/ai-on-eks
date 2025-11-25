@@ -1,44 +1,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: redis
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  project: default
-  source:
-    repoURL: https://charts.bitnami.com/bitnami
-    chart: redis
-    targetRevision: 19.6.4
-    helm:
-      parameters:
-        - name: auth.enabled
-          value: "false"
-        - name: replica.replicaCount
-          value: "0"
-        - name: image.registry
-          value: "public.ecr.aws"
-        - name: image.repository
-          value: "bitnami/redis"
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: redis-system
-  syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-    automated:
-      prune: true
-      selfHeal: true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: envoy-gateway
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   source:

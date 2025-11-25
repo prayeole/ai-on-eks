@@ -161,6 +161,12 @@ instances.
 :::
 
 ```bash
+# Add helm chart repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
+```
+
+```bash
 # Model 1: Deploy qwen3 model
 helm install qwen3-1.7b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks/refs/heads/main/blueprints/inference/inference-charts/values-qwen3-1.7b-vllm.yaml \
   --set nameOverride=qwen3 \
@@ -199,6 +205,7 @@ Route requests to different AI models based on the `x-ai-eg-model` header. This 
 ### Deploy common gateway infrastructure
 
 ```bash
+cd ../../blueprints/inference/envoy-ai-gateway
 kubectl apply -f gateway.yaml
 ```
 

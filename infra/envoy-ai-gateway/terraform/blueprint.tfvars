@@ -5,8 +5,10 @@ enable_aibrix_stack              = true
 enable_leader_worker_set         = true
 availability_zones_count         = 4
 enable_soci_snapshotter          = true
-enable_envoy_ai_gateway          = true
+enable_redis                     = true
 enable_envoy_gateway             = true
+enable_envoy_ai_gateway_crds     = true
+enable_envoy_ai_gateway          = true
 # region                           = "us-west-2"
 # eks_cluster_version              = "1.33"
 
@@ -23,11 +25,6 @@ enable_envoy_gateway             = true
 # -------------------------------------------------------------------------------------
 
 enable_cluster_addons = {
-  coredns                         = true
-  kube-proxy                      = true
-  vpc-cni                         = true
-  eks-pod-identity-agent          = true
-  aws-ebs-csi-driver              = true
   metrics-server                  = false
   eks-node-monitoring-agent       = false
   amazon-cloudwatch-observability = false
