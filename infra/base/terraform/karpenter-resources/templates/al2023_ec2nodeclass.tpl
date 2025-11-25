@@ -1,13 +1,13 @@
 amiSelectorTerms:
   - alias: al2023@latest
-karpenterRole: ${node_iam_role}
+role: ${node_iam_role}
 subnetSelectorTerms:
-  tags:
-    karpenter.sh/discovery: "${cluster_name}"
-    Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
+  - tags:
+      karpenter.sh/discovery: "${cluster_name}"
+      Name: "${cluster_name}-private-secondary*" # Only seconddary cidr subnets
 securityGroupSelectorTerms:
-  tags:
-    Name: ${cluster_name}-node
+  - tags:
+      karpenter.sh/discovery: "${cluster_name}"
 instanceStorePolicy: RAID0
 blockDeviceMappings:
   - deviceName: /dev/xvda
