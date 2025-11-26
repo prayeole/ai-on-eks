@@ -161,11 +161,6 @@ variable "enable_argo_events" {
   type        = bool
   default     = false
 }
-variable "enable_argocd" {
-  description = "Enable ArgoCD addon"
-  type        = bool
-  default     = true
-}
 
 variable "enable_envoy_ai_gateway" {
   description = "Enable Envoy AI Gateway addon"
