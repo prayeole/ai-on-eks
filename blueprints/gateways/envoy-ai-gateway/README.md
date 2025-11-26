@@ -130,6 +130,7 @@ Route requests to different AI models based on the `x-ai-eg-model` header. This 
 ### Deploy common gateway infrastructure
 
 ```bash
+cd ../../blueprints/gateways/envoy-ai-gateway
 kubectl apply -f gateway.yaml
 ```
 
