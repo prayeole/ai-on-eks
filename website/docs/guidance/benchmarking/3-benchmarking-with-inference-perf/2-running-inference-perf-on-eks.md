@@ -120,7 +120,7 @@ server:
 
   type: vllm # vllm, sglang, or tgi
 
-  model_name: mistralai/Mistral-7B-Instruct-v0.3
+  model_name: qwen3-8b
 
   base_url: http://vllm-service.default:8000
 
@@ -171,7 +171,7 @@ metrics:
 
 ## Infrastructure Topology for Reproducible Results
 
-For accurate, comparable benchmarks across multiple runs, the inference-perf Job **MUST** be co-located with your inference deployment in the same Availability Zone.
+For accurate, comparable benchmarks across multiple runs, the inference-perf Job **MUST** be placed in the same AZ as your inference deployment.
 
 ### Why This Matters:
 
@@ -211,7 +211,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: mistral-vllm
+                app.kubernetes.io/component: qwen3-vllm
             topologyKey: topology.kubernetes.io/zone
 ```
 
@@ -219,15 +219,15 @@ spec:
 **IMPORTANT:** The `matchLabels` must match your actual vLLM deployment labels. Check your deployment's pod labels with:
 
 ```bash
-kubectl get deployment mistral-vllm -n default -o jsonpath='{.spec.template.metadata.labels}' && echo
+kubectl get deployment qwen3-vllm -n default -o jsonpath='{.spec.template.metadata.labels}' && echo
 ```
 
 
 Common label patterns:
 
-* Standard deployments: `app: <service-name>` (most common - used in this guide's examples)
-* AI-on-EKS blueprints: `app.kubernetes.io/component: <service-name>`
-* Helm charts: `app.kubernetes.io/name: <service-name>`
+* Standard deployments: `app: <service-name>` (simple pattern)
+* inference-charts deployments: `app.kubernetes.io/component: <service-name>` (used in this guide's examples)
+* Other Helm charts: `app.kubernetes.io/name: <service-name>`
 
 Update the `matchLabels` section in the examples to match your deployment's actual pod labels.
 
@@ -237,11 +237,11 @@ After deploying, confirm both pods are in the same AZ:
 
 ```bash
 # Check both pods - they should show the same zone
-kubectl get pods -n default -o wide -l app.kubernetes.io/component=mistral-vllm
+kubectl get pods -n default -o wide -l app.kubernetes.io/component=qwen3-vllm
 kubectl get pods -n benchmarking -o wide -l app=inference-perf
 
 # Expected output - both in same zone:
-# mistral-vllm-xxx    ip-10-0-1-100.us-west-2a...
+# qwen3-vllm-xxx      ip-10-0-1-100.us-west-2a...
 # inference-perf-yyy  ip-10-0-1-200.us-west-2a...
 ```
 

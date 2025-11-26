@@ -154,7 +154,7 @@ benchmark:
       bucketName: inference-perf-results
       path: "inference-perf/{timestamp}"
 
-  # Pod affinity for co-location
+  # Pod affinity for same-AZ placement
   affinity:
     enabled: true
     targetLabels:
@@ -371,7 +371,7 @@ spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
+      # Same-AZ placement with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -455,7 +455,7 @@ kubectl logs -n benchmarking -l app=inference-perf -f
 Results are automatically uploaded to your S3 bucket. Access them directly:
 
 ```bash
-# List results in S3 (use bucket name from STEP 1)
+# List results in S3 (use bucket name from STEP 2)
 aws s3 ls s3://${BUCKET_NAME}/inference-perf/ --recursive
 
 # Download specific report

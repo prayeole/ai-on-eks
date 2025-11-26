@@ -67,7 +67,7 @@ helm install baseline-test ai-on-eks/benchmark-charts -f my-values.yaml -n bench
 * Fixed-length synthetic data (512 input / 128 output tokens)
 * Constant load at 1 QPS for 300 seconds
 * Streaming enabled
-* Pod affinity ensures co-location with inference pods
+* Pod affinity ensures same-AZ placement with inference pods
 
 ## Understanding the results:
 Your TTFT and ITL at 1 QPS represent the theoretical minimum latency, the absolute fastest your system can respond with zero queueing or contention. If baseline TTFT is 800ms, users will never see faster response times regardless of optimizations, like adding replicas, load balancers, or autoscaling, because these improve **throughput and concurrency**, not single-request speed. Focus on these metrics as your performance floor: schedule delay should be near zero (<10ms), and any deviation indicates the test runner itself needs more resources. Compare baseline numbers against your Service Level Agreement (SLA) targets—if baseline performance doesn't meet requirements, you need model/hardware optimization before worrying about scale, as adding capacity won't improve fundamental inference speed.

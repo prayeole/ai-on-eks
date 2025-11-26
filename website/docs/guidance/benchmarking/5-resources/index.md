@@ -108,12 +108,12 @@ data:
       duration: 60
 
     model:
-      model_name: mistral-7b
-      base_url: http://mistral-vllm.default:8000
+      model_name: qwen3-8b
+      base_url: http://qwen3-vllm.default:8000
       ignore_eos: true
 
       tokenizer:
-        pretrained_model_name_or_path: mistralai/Mistral-7B-Instruct-v0.3
+        pretrained_model_name_or_path: Qwen/Qwen3-8B
 
     storage:
       simple_storage_service:
@@ -138,13 +138,13 @@ spec:
       restartPolicy: Never
       serviceAccountName: inference-perf-sa
 
-      # Co-locate benchmark with inference pods for reproducible results
+      # Same-AZ placement with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: mistral-vllm
+                app.kubernetes.io/component: qwen3-vllm
             topologyKey: topology.kubernetes.io/zone
 
       containers:
