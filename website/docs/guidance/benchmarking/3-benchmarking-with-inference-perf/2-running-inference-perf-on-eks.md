@@ -136,7 +136,7 @@ storage:
 
   local_storage: # Default: saves in pod
 
-    path: "reports-{timestamp}"
+    path: "reports-results"
 
   # ⚠️ Warning: local_storage results are lost when pod terminates
   # To retrieve results, add '&& sleep infinity' to the Job args and use:
@@ -148,7 +148,7 @@ storage:
 
     bucket_name: "my-results-bucket"
 
-    path: "inference-perf/{timestamp}"
+    path: "inference-perf/results"
 ```
 
 ### Metrics Collection (Optional)

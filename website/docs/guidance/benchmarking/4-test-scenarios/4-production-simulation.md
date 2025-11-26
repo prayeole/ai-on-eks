@@ -116,7 +116,7 @@ data:
     storage:
       simple_storage_service:
         bucket_name: "inference-perf-results"
-        path: "production-sim/{timestamp}"
+        path: "production-sim/results"
 ---
 apiVersion: batch/v1
 kind: Job

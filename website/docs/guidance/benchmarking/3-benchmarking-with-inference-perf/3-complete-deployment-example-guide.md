@@ -152,7 +152,7 @@ benchmark:
     s3:
       enabled: true
       bucketName: inference-perf-results
-      path: "inference-perf/{timestamp}"
+      path: "inference-perf/results"
 
   # Pod affinity for same-AZ placement
   affinity:
@@ -341,7 +341,7 @@ data:
     storage:
       simple_storage_service:
         bucket_name: "inference-perf-results"
-        path: "inference-perf/{timestamp}"
+        path: "inference-perf/results"
     # Optional: Prometheus metrics collection
     # metrics:
     #   type: prometheus
@@ -472,7 +472,7 @@ storage:
 
   local_storage:
 
-    path: "reports-{timestamp}"
+    path: "reports-results"
 
 
 

@@ -122,7 +122,7 @@ data:
     storage:
       simple_storage_service:
         bucket_name: "inference-perf-results"
-        path: "baseline-test/{timestamp}"
+        path: "baseline-test/results"
 ---
 apiVersion: batch/v1
 kind: Job

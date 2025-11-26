@@ -120,7 +120,7 @@ data:
     storage:
       simple_storage_service:
         bucket_name: "inference-perf-results"
-        path: "saturation-test/{timestamp}"
+        path: "saturation-test/results"
 ---
 apiVersion: batch/v1
 kind: Job
