@@ -21,7 +21,6 @@ spec:
 %{ if taints != "" ~}
       taints:
         - key: ${taints}
-          value: "true"
           effect: "NoSchedule"
 %{ endif ~}
       requirements:
