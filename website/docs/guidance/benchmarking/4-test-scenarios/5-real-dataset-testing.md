@@ -12,11 +12,12 @@ Use real dataset testing to validate production-ready performance with actual us
 ### Using Helm Chart (Recommended)
 
 ```bash
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
 # ShareGPT dataset testing uses same scenarios but with real data
-helm install sharegpt-test ./charts/benchmark-charts \
+helm install sharegpt-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=baseline \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -38,7 +39,7 @@ Provide your own conversation dataset:
 benchmark:
   scenario: saturation  # Or any scenario
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
   # Override data configuration to use custom dataset
   customData:
     enabled: true

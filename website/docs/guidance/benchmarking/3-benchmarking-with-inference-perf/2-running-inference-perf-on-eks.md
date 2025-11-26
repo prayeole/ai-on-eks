@@ -44,11 +44,34 @@ Defines how the tool communicates with your inference endpoint. You'll specify w
 
 ```yaml
 api:
-  type: completion # completion or chat (default: completion)
+  type: completion # completion or chat
   streaming: true # Enable for TTFT/ITL metrics
 ```
 
-**Note:** `completion` is the recommended default because vLLM and most model servers don't enable the chat API by default without additional configuration. Use `type: chat` only if you've explicitly configured your model server to support the chat completion endpoint.
+**Determining the Correct API Type:**
+
+The inference-charts deployment automatically configures API endpoints based on the model's capabilities. To identify which endpoints are available:
+
+**Method 1: Check vLLM Deployment Logs (Recommended)**
+
+Check your vLLM server logs to see which API endpoints were enabled at startup:
+
+```bash
+# View vLLM startup logs showing enabled endpoints
+kubectl logs -n default -l app.kubernetes.io/name=inference-charts --tail=100 | grep -i "route\|endpoint\|application"
+```
+
+Look for output indicating enabled routes:
+- `Route: /v1/completions` → Use `type: completion`
+- `Route: /v1/chat/completions` → Use `type: chat`
+
+If both routes appear, use `completion` (simpler for benchmarking).
+
+**Method 2: Check Model Capabilities (Optional)**
+
+For understanding the model's theoretical capabilities, review the Hugging Face model card for your model. Models with a defined chat template typically support the chat completion API, but the actual deployment configuration determines what's enabled.
+
+**Note:** The OpenAI completion API (`v1/completions`) is deprecated by OpenAI but remains widely supported by vLLM, SGLang, and TGI. Most inference-charts deployments enable it by default without additional configuration.
 
 ### Data Generation
 
@@ -173,6 +196,8 @@ Second benchmark run (after pod restart):
 
 The 50ms difference is cross-AZ latency, not actual performance change.
 
+**Note on Cross-AZ Testing:** While same-AZ placement is recommended for baseline benchmarking and performance optimization, cross-AZ testing is valuable for validating high-availability (HA) deployments where your inference service spans multiple availability zones. If your production deployment uses multi-AZ load balancing for fault tolerance, conduct separate benchmarks with cross-AZ placement to understand the latency impact users may experience during zone-specific routing.
+
 ### Required Configuration:
 
 All benchmark Job examples in this guide include `affinity` configuration to enforce same-AZ placement using the standard Kubernetes topology label `topology.kubernetes.io/zone`:
@@ -223,14 +248,24 @@ kubectl get pods -n benchmarking -o wide -l app=inference-perf
 
 ### Optional: Instance Type Consistency
 
-For maximum reproducibility (baseline benchmarks, CI/CD pipelines), you can also specify instance types:
+**Instance Sizing for Benchmark Pods**
+
+The benchmark pod runs on a separate CPU node from your GPU-based inference deployment. The m6i.2xlarge instance type (8 vCPU, 32 GB RAM) provides sufficient capacity for load generation without competing for GPU node resources.
+
+**Important:** The pod affinity configuration (`topology.kubernetes.io/zone`) ensures both pods are in the same availability zone for network consistency, NOT on the same physical node. Your cluster must have capacity for both:
+- GPU nodes for inference (e.g., g5.2xlarge for models like Qwen3-8B)
+- CPU nodes for benchmarking (e.g., m6i.2xlarge)
+
+If using Karpenter, it will automatically provision the appropriate node types in the same AZ.
+
+For maximum reproducibility (baseline benchmarks, CI/CD pipelines), you can specify the instance type:
 
 ```yaml
 spec:
   template:
     spec:
       nodeSelector:
-        node.kubernetes.io/instance-type: c5.4xlarge
+        node.kubernetes.io/instance-type: m6i.2xlarge
       affinity:
         podAffinity:
           # ... same as above

@@ -5,17 +5,19 @@ sidebar_label: Scenario 4 - Production Simulation
 # SCENARIO 4: Production Simulation
 
 ## When to use this scenario:
-Deploy production simulation as your final validation before launch—it replicates real-world traffic chaos with variable request sizes and Poisson (bursty) arrivals instead of uniform load. Use this after optimizing based on baseline and saturation tests to answer "will users have a good experience under realistic conditions?" Real production traffic doesn't consist of identical 512-token requests arriving like clockwork; users send varying lengths at random intervals, and this test validates your system handles that heterogeneity while maintaining acceptable percentile latencies for SLA setting.
+Deploy production simulation as your final validation before launch; it replicates real-world traffic chaos with variable request sizes and Poisson (bursty) arrivals instead of uniform load. Use this after optimizing based on baseline and saturation tests to answer "will users have a good experience under realistic conditions?" Real production traffic doesn't consist of identical 512-token requests arriving like clockwork; users send varying lengths at random intervals, and this test validates your system handles that heterogeneity while maintaining acceptable percentile latencies for SLA setting.
 
 ## Deployment
 
 ### Using Helm Chart (Recommended)
 
 ```bash
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-helm install production-sim ./charts/benchmark-charts \
+# Install production scenario
+helm install production-sim ai-on-eks/benchmark-charts \
   --set benchmark.scenario=production \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -35,7 +37,7 @@ Adjust burst rate and variability:
 benchmark:
   scenario: production
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
   scenarios:
     production:
       data:
@@ -52,7 +54,7 @@ benchmark:
 ```
 
 ```bash
-helm install production-sim ./charts/benchmark-charts -f custom-production.yaml -n benchmarking
+helm install production-sim ai-on-eks/benchmark-charts -f custom-production.yaml -n benchmarking
 ```
 
 ## Key Configuration:
@@ -64,7 +66,7 @@ helm install production-sim ./charts/benchmark-charts -f custom-production.yaml 
 * 8 concurrent workers
 
 ## Understanding the results:
-Focus exclusively on P99 and P95 latency—these percentiles represent the worst experience that 99% and 95% of users encounter, unlike averages that hide poor tail performance. The wide input/output distributions create natural variability, so expect higher variance than baseline tests; this is normal and reflects production reality. Poisson bursts cause temporary queue buildup even at sustainable average rates, so if P99 is significantly worse than uniform-load testing suggested, you need more headroom than expected. Set SLAs based on these realistic percentiles, not averages—if P99 TTFT is 1200ms, don't promise sub-second latency even though mean might be 400ms.
+Focus exclusively on P99 and P95 latency; these percentiles represent the worst experience that 99% and 95% of users encounter, unlike averages that hide poor tail performance. The wide input/output distributions create natural variability, so expect higher variance than baseline tests; this is normal and reflects production reality. Poisson bursts cause temporary queue buildup even at sustainable average rates, so if P99 is significantly worse than uniform-load testing suggested, you need more headroom than expected. Set SLAs based on these realistic percentiles, not averages; if P99 TTFT is 1200ms, don't promise sub-second latency even though mean might be 400ms.
 
 <details>
 <summary><strong>Alternative: Raw Kubernetes YAML</strong></summary>

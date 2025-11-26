@@ -30,13 +30,43 @@ If you have an existing cluster, ensure these prerequisites:
 * You must know your Prometheus service name and namespace
 * Example: http://&lt;your-prometheus-service&gt;.&lt;namespace&gt;:9090
 
-## STEP 1:  AWS Storage Setup (Using S3 - Recommendation)
+## STEP 1: Deploy Inference Model
 
-**Note:** If you deployed your cluster using the ai-on-eks inference-ready-cluster blueprint, the EKS Pod Identity Agent addon is already installed. You can skip the addon installation command below and proceed directly to creating the IAM role and pod identity association.
+Before running benchmarks, you need an active LLM inference endpoint.
+
+**Path A Users:** If you deployed using the ai-on-eks blueprint with a pre-configured inference deployment, skip to STEP 2.
+
+**Path B Users:** Deploy vLLM with your chosen model using the inference-charts:
+
+```bash
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
+
+# Deploy Qwen3-8B with vLLM
+helm install qwen3-vllm ai-on-eks/inference-charts \
+  --set model=Qwen/Qwen3-8B \
+  --set inference.framework=vllm \
+  --namespace default --create-namespace
+
+# Verify deployment
+kubectl get pods -n default -l app.kubernetes.io/name=inference-charts
+kubectl logs -n default -l app.kubernetes.io/name=inference-charts -f
+```
+
+Wait for the model to be ready before proceeding to benchmarking. This typically takes 3-10 minutes depending on model size and download speed.
+
+## STEP 2:  AWS Storage Setup (Using S3 - Recommendation)
+
+**Note:** If you deployed your cluster using the ai-on-eks inference-ready-cluster blueprint, the EKS Pod Identity Agent addon is already installed. You can skip the addon installation command below and proceed directly to creating the S3 bucket and IAM role.
 
 Set up AWS credentials so your benchmark pod can write results to S3 without hardcoded credentials.
 
 ```bash
+# Create S3 bucket for benchmark results
+export BUCKET_NAME="inference-perf-results-$(aws sts get-caller-identity --query Account --output text)"
+aws s3 mb s3://${BUCKET_NAME} --region us-west-2
+
 # Install EKS Pod Identity Agent (already deployed on the blueprint reference - https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster)
 
 aws eks create-addon \
@@ -84,7 +114,7 @@ aws eks create-pod-identity-association \
   --role-arn arn:aws:iam::ACCOUNT_ID:role/InferencePerfRole
 ```
 
-## STEP 2: Deploy Benchmark Resources
+## STEP 3: Deploy Benchmark Resources
 
 ### Option A: Using Helm Chart (Recommended)
 
@@ -93,12 +123,12 @@ The [AI on EKS Benchmark Helm Chart](https://github.com/awslabs/ai-on-eks-charts
 **Install the benchmark:**
 
 ```bash
-# Clone the charts repository
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
 # Deploy a production simulation test
-helm install production-test ./charts/benchmark-charts \
+helm install production-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=production \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -142,7 +172,7 @@ benchmark:
 
 Deploy with custom values:
 ```bash
-helm install production-test ./charts/benchmark-charts \
+helm install production-test ai-on-eks/benchmark-charts \
   -f custom-benchmark.yaml \
   --namespace benchmarking --create-namespace
 ```
@@ -389,7 +419,7 @@ EOF
 
 ---
 
-## STEP 3: Deploy and Monitor
+## STEP 4: Deploy and Monitor
 
 ### For Helm Deployments:
 
@@ -419,22 +449,17 @@ kubectl get jobs -n benchmarking -w
 kubectl logs -n benchmarking -l app=inference-perf -f
 ```
 
-## STEP 4: Retrieve Results
+## STEP 5: Retrieve Results
 
 ### With S3 Storage (Recommended):
 Results are automatically uploaded to your S3 bucket. Access them directly:
 
 ```bash
-# List results in S3
-
-aws s3 ls s3://inference-perf-results/inference-perf/ --recursive
-
-
+# List results in S3 (use bucket name from STEP 1)
+aws s3 ls s3://${BUCKET_NAME}/inference-perf/ --recursive
 
 # Download specific report
-
-aws s3 cp s3://inference-perf-results/inference-perf/20251020-143000/summary_lifecycle_metrics.json ./
-
+aws s3 cp s3://${BUCKET_NAME}/inference-perf/20251020-143000/summary_lifecycle_metrics.json ./
 ```
 
 ### With Local Storage (Alternative):

@@ -12,10 +12,12 @@ Use multi-stage saturation testing when you need to empirically determine your s
 ### Using Helm Chart (Recommended)
 
 ```bash
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-helm install saturation-test ./charts/benchmark-charts \
+# Install saturation scenario
+helm install saturation-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=saturation \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -35,7 +37,7 @@ Adjust the QPS stages to match your expected capacity:
 benchmark:
   scenario: saturation
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
   scenarios:
     saturation:
       load:
@@ -51,7 +53,7 @@ benchmark:
 ```
 
 ```bash
-helm install saturation-test ./charts/benchmark-charts -f custom-saturation.yaml -n benchmarking
+helm install saturation-test ai-on-eks/benchmark-charts -f custom-saturation.yaml -n benchmarking
 ```
 
 ## Key Configuration:

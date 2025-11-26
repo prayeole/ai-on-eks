@@ -16,10 +16,12 @@ Use sweep mode for automated capacity discovery when you don't want to manually 
 ### Using Helm Chart (Recommended)
 
 ```bash
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-helm install sweep-test ./charts/benchmark-charts \
+# Install sweep scenario
+helm install sweep-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=sweep \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -39,7 +41,7 @@ Adjust saturation probe settings:
 benchmark:
   scenario: sweep
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
   scenarios:
     sweep:
       load:
@@ -52,7 +54,7 @@ benchmark:
 ```
 
 ```bash
-helm install sweep-test ./charts/benchmark-charts -f custom-sweep.yaml -n benchmarking
+helm install sweep-test ai-on-eks/benchmark-charts -f custom-sweep.yaml -n benchmarking
 ```
 
 ## Key Configuration:

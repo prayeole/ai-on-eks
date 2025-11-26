@@ -12,11 +12,12 @@ Use baseline testing when establishing your system's optimal performance with ze
 ### Using Helm Chart (Recommended)
 
 ```bash
-# Install from GitHub (requires git clone)
-git clone https://github.com/awslabs/ai-on-eks-charts.git
-cd ai-on-eks-charts
+# Add the AI on EKS Helm repository
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
 
-helm install baseline-test ./charts/benchmark-charts \
+# Install baseline scenario
+helm install baseline-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=baseline \
   --set benchmark.target.baseUrl=http://qwen3-vllm.default:8000 \
   --set benchmark.target.modelName=qwen3-8b \
@@ -33,9 +34,9 @@ Override specific values using `--set` or a custom values file:
 
 ```bash
 # Adjust test duration or resources
-helm install baseline-test ./charts/benchmark-charts \
+helm install baseline-test ai-on-eks/benchmark-charts \
   --set benchmark.scenario=baseline \
-  --set benchmark.target.baseUrl=http://your-model:8000 \
+  --set benchmark.target.baseUrl=http://your-model.your-namespace:8000 \
   --set benchmark.scenarios.baseline.load.stages[0].duration=600 \
   --set benchmark.resources.main.requests.cpu=4 \
   --namespace benchmarking
@@ -47,7 +48,7 @@ Or create a custom `my-values.yaml`:
 benchmark:
   scenario: baseline
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
     modelName: your-model-name
   scenarios:
     baseline:
@@ -58,7 +59,7 @@ benchmark:
 ```
 
 ```bash
-helm install baseline-test ./charts/benchmark-charts -f my-values.yaml -n benchmarking
+helm install baseline-test ai-on-eks/benchmark-charts -f my-values.yaml -n benchmarking
 ```
 
 ## Key Configuration:

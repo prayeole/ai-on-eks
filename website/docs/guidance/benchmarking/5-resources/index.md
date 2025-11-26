@@ -22,7 +22,7 @@ Create a custom values file to override defaults:
 benchmark:
   scenario: saturation
   target:
-    baseUrl: http://your-model:8000
+    baseUrl: http://your-model.your-namespace:8000
     modelName: your-model-name
 
   # Override scenario-specific settings
@@ -50,7 +50,7 @@ benchmark:
 
 Deploy with custom values:
 ```bash
-helm install my-benchmark ./charts/benchmark-charts -f custom-benchmark.yaml -n benchmarking
+helm install my-benchmark ai-on-eks/benchmark-charts -f custom-benchmark.yaml -n benchmarking
 ```
 
 ## Alternative: Custom Container with SentencePiece

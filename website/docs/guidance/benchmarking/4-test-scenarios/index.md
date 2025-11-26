@@ -56,10 +56,10 @@ Validate production-ready performance using actual user prompts and query patter
 All scenarios use the [AI on EKS Benchmark Helm Chart](https://github.com/awslabs/ai-on-eks-charts/tree/main/charts/benchmark-charts) for deployment. Before proceeding:
 
 1. **Install Helm** (version 3.x or later)
-2. **Clone the charts repository:**
+2. **Add the AI on EKS Helm repository:**
    ```bash
-   git clone https://github.com/awslabs/ai-on-eks-charts.git
-   cd ai-on-eks-charts
+   helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+   helm repo update
    ```
 3. **Configure kubectl** access to your EKS cluster
 4. **Deploy your inference service** (e.g., vLLM serving your model)
