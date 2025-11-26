@@ -25,6 +25,7 @@ spec:
 
         # Configure Node Feature Discovery components
         nfd:
+          enableNodeFeatureApi: true
           gc:
             nodeSelector:
               karpenter.k8s.aws/instance-gpu-manufacturer: nvidia
