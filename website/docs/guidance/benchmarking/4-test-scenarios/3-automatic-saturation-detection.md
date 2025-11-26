@@ -142,7 +142,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                app: qwen3-vllm
+                app.kubernetes.io/component: qwen3-vllm
             topologyKey: topology.kubernetes.io/zone
 
       containers:

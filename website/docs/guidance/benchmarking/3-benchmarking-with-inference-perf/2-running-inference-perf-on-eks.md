@@ -122,7 +122,7 @@ server:
 
   model_name: qwen3-8b
 
-  base_url: http://vllm-service.default:8000
+  base_url: http://qwen3-vllm.default:8000
 
   ignore_eos: true
 ```

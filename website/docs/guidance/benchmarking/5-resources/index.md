@@ -117,7 +117,7 @@ data:
 
     storage:
       simple_storage_service:
-        bucket_name: "inference-perf-results-877558825016"
+        bucket_name: "inference-perf-results"
         path: "inference-perf/{timestamp}"
 ---
 apiVersion: batch/v1
