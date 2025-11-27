@@ -8,10 +8,10 @@ This section provides practical test scenarios for benchmarking LLM inference pe
 
 ## Available Scenarios
 
-### [Choosing Between Synthetic and Real Dataset Testing](./0-choosing-synthetic-vs-real)
+### [Choosing Between Synthetic and Real Dataset Testing](./0-choosing-synthetic-vs-real.md)
 Understand when to use synthetic vs. real-world data for benchmarking and best practices for dataset selection.
 
-### [Scenario 1: Baseline Performance](./1-baseline-performance)
+### [Scenario 1: Baseline Performance](./1-baseline-performance.md)
 Establish your system's optimal performance with zero contention. Ideal for understanding the best-case performance without queueing or resource competition.
 
 **Use when:**
@@ -19,7 +19,7 @@ Establish your system's optimal performance with zero contention. Ideal for unde
 - Made infrastructure changes
 - Need a clean reference point for optimization
 
-### [Scenario 2: Saturation Testing](./2-saturation-testing)
+### [Scenario 2: Saturation Testing](./2-saturation-testing.md)
 Determine maximum sustainable throughput before performance degrades through multi-stage load testing.
 
 **Use when:**
@@ -27,7 +27,7 @@ Determine maximum sustainable throughput before performance degrades through mul
 - Setting autoscaling thresholds
 - Validating before production launch
 
-### [Scenario 3: Automatic Saturation Detection](./3-automatic-saturation-detection)
+### [Scenario 3: Automatic Saturation Detection](./3-automatic-saturation-detection.md)
 Use sweep mode for automated capacity discovery without manual QPS guessing.
 
 **Use when:**
@@ -35,7 +35,7 @@ Use sweep mode for automated capacity discovery without manual QPS guessing.
 - CI/CD pipelines
 - Quick capacity re-validation
 
-### [Scenario 4: Production Simulation](./4-production-simulation)
+### [Scenario 4: Production Simulation](./4-production-simulation.md)
 Replicate real-world traffic with variable request sizes and bursty (Poisson) arrivals.
 
 **Use when:**
@@ -43,7 +43,7 @@ Replicate real-world traffic with variable request sizes and bursty (Poisson) ar
 - Setting SLA targets
 - Validating realistic workload handling
 
-### [Scenario 5: Real Dataset Testing](./5-real-dataset-testing)
+### [Scenario 5: Real Dataset Testing](./5-real-dataset-testing.md)
 Validate production-ready performance using actual user prompts and query patterns.
 
 **Use when:**
