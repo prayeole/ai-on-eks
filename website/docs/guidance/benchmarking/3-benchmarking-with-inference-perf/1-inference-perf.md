@@ -12,4 +12,3 @@ Users can define input/output distributions (Gaussian, fixed-length, min-max) an
 
 
 ![](img/architecture.png)
-
