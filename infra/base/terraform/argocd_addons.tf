@@ -34,6 +34,40 @@ resource "kubectl_manifest" "aibrix_core_yaml" {
   ]
 }
 
+resource "kubectl_manifest" "envoy_ai_gateway_crds_yaml" {
+  count     = var.enable_envoy_ai_gateway_crds ? 1 : 0
+  yaml_body = file("${path.module}/argocd-addons/envoy-ai-gateway-crds.yaml")
+  depends_on = [
+    helm_release.argocd
+  ]
+}
+
+resource "kubectl_manifest" "envoy_ai_gateway_yaml" {
+  count     = var.enable_envoy_ai_gateway ? 1 : 0
+  yaml_body = file("${path.module}/argocd-addons/envoy-ai-gateway.yaml")
+  depends_on = [
+    helm_release.argocd,
+    kubectl_manifest.envoy_ai_gateway_crds_yaml
+  ]
+}
+
+resource "kubectl_manifest" "redis_yaml" {
+  count     = var.enable_redis ? 1 : 0
+  yaml_body = file("${path.module}/argocd-addons/redis.yaml")
+  depends_on = [
+    helm_release.argocd
+  ]
+}
+
+resource "kubectl_manifest" "envoy_gateway_yaml" {
+  count     = var.enable_envoy_gateway ? 1 : 0
+  yaml_body = file("${path.module}/argocd-addons/envoy-gateway.yaml")
+  depends_on = [
+    helm_release.argocd,
+    kubectl_manifest.redis_yaml
+  ]
+}
+
 resource "kubectl_manifest" "lws_yaml" {
   count     = var.enable_leader_worker_set ? 1 : 0
   yaml_body = file("${path.module}/argocd-addons/leader-worker-set.yaml")
