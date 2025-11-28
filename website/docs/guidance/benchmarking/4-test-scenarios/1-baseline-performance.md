@@ -5,7 +5,7 @@ sidebar_label: Scenario 1 - Baseline Performance
 # SCENARIO 1: Baseline Performance
 
 ## When to use this scenario:
-Use baseline testing when establishing your system's optimal performance with zero contention—essentially taking your infrastructure's vital signs. This is your starting point before any capacity planning or optimization work, ideal when you've just deployed a new endpoint or made infrastructure changes. It answers "what's the best performance this system can deliver?" without queueing or resource competition, giving you a clean reference point for all future testing.
+Use baseline testing when establishing your system's optimal performance with zero contention, essentially taking your infrastructure's vital signs. This is your starting point before any capacity planning or optimization work, ideal when you've just deployed a new endpoint or made infrastructure changes. It answers "what's the best performance this system can deliver?" without queueing or resource competition, giving you a clean reference point for all future testing.
 
 ## Deployment
 
@@ -70,7 +70,7 @@ helm install baseline-test ai-on-eks/benchmark-charts -f my-values.yaml -n bench
 * Pod affinity ensures same-AZ placement with inference pods
 
 ## Understanding the results:
-Your TTFT and ITL at 1 QPS represent the theoretical minimum latency, the absolute fastest your system can respond with zero queueing or contention. If baseline TTFT is 800ms, users will never see faster response times regardless of optimizations, like adding replicas, load balancers, or autoscaling, because these improve **throughput and concurrency**, not single-request speed. Focus on these metrics as your performance floor: schedule delay should be near zero (`<10ms`), and any deviation indicates the test runner itself needs more resources. Compare baseline numbers against your Service Level Agreement (SLA) targets—if baseline performance doesn't meet requirements, you need model/hardware optimization before worrying about scale, as adding capacity won't improve fundamental inference speed.
+Your TTFT and ITL at 1 QPS represent the theoretical minimum latency, the absolute fastest your system can respond with zero queueing or contention. If baseline TTFT is 800ms, users will never see faster response times regardless of optimizations, like adding replicas, load balancers, or autoscaling, because these improve **throughput and concurrency**, not single-request speed. Focus on these metrics as your performance floor: schedule delay should be near zero (`<10ms`), and any deviation indicates the test runner itself needs more resources. Compare baseline numbers against your Service Level Agreement (SLA) targets; if baseline performance doesn't meet requirements, you need model/hardware optimization before worrying about scale, as adding capacity won't improve fundamental inference speed.
 
 <details>
 <summary><strong>Alternative: Raw Kubernetes YAML</strong> (for educational purposes or custom deployments)</summary>
